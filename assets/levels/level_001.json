@@ -1,0 +1,21 @@
+{
+  "id": 1,
+  "difficulty": "Easy",
+  "bottleCount": 3,
+  "emptyBottles": 1,
+  "bottles": [
+    [
+      2,
+      2,
+      2,
+      1
+    ],
+    [
+      2,
+      1,
+      1,
+      1
+    ],
+    []
+  ]
+}
