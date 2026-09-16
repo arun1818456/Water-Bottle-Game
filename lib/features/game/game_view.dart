@@ -248,6 +248,7 @@ class GameView extends StatelessWidget {
       isHintTarget: isHintTarget,
       skinType: skinType,
       tiltAngle: isPouringSource ? controller.pourTiltAngle.value : 0.0,
+      tiltOffset: isPouringSource ? controller.pourTiltOffset.value : Offset.zero,
       onTap: () => controller.onBottleTapped(index),
     );
   }

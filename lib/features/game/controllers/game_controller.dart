@@ -54,6 +54,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   // Keys for bottle render boxes to calculate precise pour coordinates
   final Map<int, GlobalKey> bottleKeys = {};
 
+  Offset _pourTargetOffset = Offset.zero;
+
   late LevelData _originalLevelData;
   late final AnimationController _pourAnimationController;
 
@@ -189,7 +191,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     // Determine tilt direction (tilt left if target is to the left, else right)
     final tiltDirection = (toIdx < fromIdx) ? -1.0 : 1.0;
-    pourTiltAngle.value = tiltDirection * 1.1; // ~63 degrees tilt
+    final targetAngle = tiltDirection * 1.1; // ~63 degrees tilt
 
     AudioService.to.playPourSound();
     HapticFeedbackHelper.mediumImpact();
@@ -198,7 +200,28 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     _pourAnimationController.reset();
 
     void animationListener() {
-      streamProgress.value = _pourAnimationController.value;
+      final t = _pourAnimationController.value;
+
+      // Sequence:
+      // 0.0 - 0.2: Move and tilt
+      // 0.2 - 0.8: Pour (hold position)
+      // 0.8 - 1.0: Move back and untilt
+      double phase = 0.0;
+      if (t <= 0.2) {
+        phase = t / 0.2;
+      } else if (t <= 0.8) {
+        phase = 1.0;
+      } else {
+        phase = 1.0 - ((t - 0.8) / 0.2);
+      }
+
+      final curvedPhase = Curves.easeInOut.transform(phase);
+
+      pourTiltAngle.value = targetAngle * curvedPhase;
+      pourTiltOffset.value = _pourTargetOffset * curvedPhase;
+
+      // Stream runs from 0.2 to 0.8
+      streamProgress.value = ((t - 0.2) / 0.6).clamp(0.0, 1.0);
     }
     _pourAnimationController.addListener(animationListener);
 
@@ -224,6 +247,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     pouringSourceIndex.value = -1;
     pouringTargetIndex.value = -1;
     pourTiltAngle.value = 0.0;
+    pourTiltOffset.value = Offset.zero;
     streamProgress.value = 0.0;
 
     // Check Victory or Defeat
@@ -244,9 +268,28 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           final toPos = toBox.localToGlobal(Offset.zero);
 
           final isTargetLeft = toIdx < fromIdx;
+
+          // Target top center for the bottle mouth
+          final targetTopCenter = Offset(
+            toPos.dx + toBox.size.width / 2,
+            toPos.dy - 30, // move slightly above the target bottle
+          );
+
+          final sourceTopCenter = Offset(
+            fromPos.dx + fromBox.size.width / 2,
+            fromPos.dy,
+          );
+
+          // We want the source bottle's mouth to reach targetTopCenter
+          final dx = targetTopCenter.dx - sourceTopCenter.dx;
+          final offsetDx = dx + (isTargetLeft ? 20 : -20);
+          final offsetDy = targetTopCenter.dy - sourceTopCenter.dy;
+
+          _pourTargetOffset = Offset(offsetDx, offsetDy);
+
           streamStart.value = Offset(
-            fromPos.dx + (isTargetLeft ? 8 : fromBox.size.width - 8),
-            fromPos.dy + 8,
+            targetTopCenter.dx + (isTargetLeft ? 20 : -20),
+            targetTopCenter.dy + 8,
           );
           streamEnd.value = Offset(
             toPos.dx + toBox.size.width / 2,
@@ -258,6 +301,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     } catch (_) {}
 
     // Fallback coordinates if render box is unavailable
+    _pourTargetOffset = const Offset(0, -50);
     streamStart.value = const Offset(150, 200);
     streamEnd.value = const Offset(250, 300);
   }
