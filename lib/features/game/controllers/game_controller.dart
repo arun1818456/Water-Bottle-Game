@@ -289,11 +289,11 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
           streamStart.value = Offset(
             targetTopCenter.dx + (isTargetLeft ? 20 : -20),
-            targetTopCenter.dy + 8,
+            targetTopCenter.dy - 50,
           );
           streamEnd.value = Offset(
             toPos.dx + toBox.size.width / 2,
-            toPos.dy + 12,
+            toPos.dy + 10, // Target mouth se approx 2cm upar
           );
           return;
         }
