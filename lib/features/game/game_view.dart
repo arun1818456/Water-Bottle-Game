@@ -141,7 +141,6 @@ class GameView extends StatelessWidget {
                 Text(
                   'LEVEL ${controller.levelId.value}',
                   style: const TextStyle(
-                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
                     color: AppColors.primaryCyan,
@@ -150,7 +149,7 @@ class GameView extends StatelessWidget {
                 Text(
                   controller.difficulty.value.toUpperCase(),
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
                     letterSpacing: 0.8,
@@ -199,7 +198,7 @@ class GameView extends StatelessWidget {
     final bottleCount = controller.bottles.length;
 
     // Split bottles into 2 balanced rows
-    final mid = (bottleCount / 2).ceil();
+    final mid = (bottleCount / 4).ceil();
     final topRowBottles = controller.bottles.sublist(0, mid);
     final bottomRowBottles = controller.bottles.sublist(mid);
 

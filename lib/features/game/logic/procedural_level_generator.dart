@@ -109,12 +109,15 @@ class ProceduralLevelGenerator {
       }
     }
 
-    // Solvable-by-construction reverse fallback
+    // Solvable-by-construction reverse fallback (more shuffling for uniqueness)
     return _generateReverseSolvable(levelId, colorCount, emptyBottles);
   }
 
   static LevelData _generateReverseSolvable(int levelId, int colorCount, int emptyBottles) {
-    final rand = Random(9999 + levelId * 17);
+    // Strong hash of level to ensure the same level ID always gives the same configuration,
+    // but the configuration looks highly randomized
+    final rand = Random(levelId.hashCode ^ 87654321);
+    
     final bottles = List.generate(
       colorCount,
       (i) => List<int>.filled(4, i + 1, growable: true),
@@ -123,7 +126,9 @@ class ProceduralLevelGenerator {
       bottles.add(<int>[]);
     }
 
-    final steps = 25 + min(60, levelId ~/ 3);
+    // High number of reverse steps to thoroughly scramble the bottles
+    final steps = 150 + min(200, levelId * 2);
+    
     for (var s = 0; s < steps; s++) {
       final nonEmpties = <int>[];
       for (var i = 0; i < bottles.length; i++) {
@@ -135,14 +140,33 @@ class ProceduralLevelGenerator {
       final targets = <int>[];
       for (var j = 0; j < bottles.length; j++) {
         if (j != from && bottles[j].length < 4) {
+          // Prevent trivial loop of taking a color and putting it straight back
           targets.add(j);
         }
       }
       if (targets.isEmpty) continue;
+      
       final to = targets[rand.nextInt(targets.length)];
-
       bottles[to].add(bottles[from].removeLast());
     }
+    
+    // Additional color ID shuffle so colors aren't always 1,2,3... 
+    // This makes the same "structure" look different
+    final colors = List.generate(colorCount, (i) => i + 1);
+    colors.shuffle(rand);
+    final colorMap = <int, int>{};
+    for (var i = 0; i < colors.length; i++) {
+      colorMap[i + 1] = colors[i];
+    }
+    
+    for (var i = 0; i < bottles.length; i++) {
+      for (var j = 0; j < bottles[i].length; j++) {
+         bottles[i][j] = colorMap[bottles[i][j]]!;
+      }
+    }
+    
+    // Shuffle the physical order of the bottles on the board so it doesn't look samey
+    bottles.shuffle(rand);
 
     return LevelData(
       id: levelId,

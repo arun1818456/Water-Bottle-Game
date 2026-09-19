@@ -95,8 +95,8 @@ class _BottleWidgetState extends State<BottleWidget>
               angle: widget.tiltAngle,
               alignment: Alignment.topCenter,
               child: SizedBox(
-                width: 62,
-                height: 165,
+                width: 58,
+                height: 150,
                 child: CustomPaint(
                   painter: BottlePainter(
                     bottle: widget.bottle,

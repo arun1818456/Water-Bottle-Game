@@ -11,7 +11,7 @@ class SplashController extends GetxController {
 
   Future<void> _startLoadingSequence() async {
     for (var i = 1; i <= 100; i++) {
-      await Future.delayed(const Duration(milliseconds: 14));
+      await Future.delayed(const Duration(milliseconds: 10));
       progress.value = i / 100.0;
     }
 

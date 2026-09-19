@@ -25,7 +25,7 @@ class AdsService extends GetxService {
     } else if (Platform.isIOS) {
       // iOS Test Banner ID
       // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
-      return 'ca-app-pub-3940256099942544/2934735716';
+      // return 'ca-app-pub-3940256099942544/2934735716';
     }
     return '';
   }
@@ -39,7 +39,7 @@ class AdsService extends GetxService {
     } else if (Platform.isIOS) {
       // iOS Test Interstitial ID
       // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
-      return 'ca-app-pub-3940256099942544/4411468910';
+      // return 'ca-app-pub-3940256099942544/4411468910';
     }
     return '';
   }
@@ -53,7 +53,7 @@ class AdsService extends GetxService {
     } else if (Platform.isIOS) {
       // iOS Test Rewarded ID
       // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
-      return 'ca-app-pub-3940256099942544/1712485313';
+      // return 'ca-app-pub-3940256099942544/1712485313';
     }
     return '';
   }
