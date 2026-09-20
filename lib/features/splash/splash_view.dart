@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
+import 'package:water_bottle_ais/core/constants/app_images.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import 'splash_controller.dart';
@@ -47,11 +48,7 @@ class SplashView extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.water_drop_rounded,
-                  size: 64,
-                  color: Colors.white,
-                ),
+                child:Image.asset(AppImages.appLogo),
               )
                   .animate()
                   .scale(duration: 800.ms, curve: Curves.elasticOut)
@@ -65,9 +62,9 @@ class SplashView extends StatelessWidget {
                   colors: [AppColors.primaryCyan, Color(0xFF80D8FF), Colors.white],
                 ).createShader(bounds),
                 child: const Text(
-                  'AQUA SORT MASTER',
+                  'AIS WATER BOTTLE',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2.2,
                     color: Colors.white,
@@ -75,10 +72,8 @@ class SplashView extends StatelessWidget {
                 ),
               ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
 
-              const SizedBox(height: 8),
-
               const Text(
-                'Water Bottle Color Puzzle',
+                'Pour, Sort & Relax',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -87,8 +82,9 @@ class SplashView extends StatelessWidget {
                 ),
               ).animate().fadeIn(delay: 300.ms, duration: 600.ms),
 
-              const Spacer(),
 
+
+              const SizedBox(height: 50),
               // Loading Bar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 56),
@@ -116,17 +112,16 @@ class SplashView extends StatelessWidget {
                     )),
               ),
 
-              const SizedBox(height: 28),
-
+              const Spacer(),
               const Text(
-                'v${AppConstants.appVersion}',
+                'Powered by Arun innovation Studio',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   color: Colors.white24,
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 28),
             ],
           ),
         ),

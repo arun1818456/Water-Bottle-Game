@@ -38,8 +38,8 @@ class _InteractiveWaterDropState extends State<InteractiveWaterDrop> {
       onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 110,
-        height: 110,
+        width: 25,
+        height: 25,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -63,7 +63,7 @@ class _InteractiveWaterDropState extends State<InteractiveWaterDrop> {
             if (!_isBursting)
               const Icon(
                 Icons.water_drop_rounded,
-                size: 64,
+                size: 25,
                 color: Colors.white,
               )
                   .animate(key: ValueKey('drop_$_counter'))
@@ -78,7 +78,7 @@ class _InteractiveWaterDropState extends State<InteractiveWaterDrop> {
               // Burst effect: Rapid expansion and fade out
               const Icon(
                 Icons.water_drop_rounded,
-                size: 64,
+                size: 28,
                 color: Colors.white,
               )
                   .animate()

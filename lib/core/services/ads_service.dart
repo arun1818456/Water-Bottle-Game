@@ -110,15 +110,25 @@ class AdsService extends GetxService {
     _homeBannerAd?.load();
   }
 
+
   Widget getHomeBannerWidget() {
     return Obx(() {
       if (isBannerLoaded.value && _homeBannerAd != null) {
-        return SizedBox(
-          width: _homeBannerAd!.size.width.toDouble(),
-          height: _homeBannerAd!.size.height.toDouble(),
-          child: AdWidget(ad: _homeBannerAd!),
+        return Center(
+          child: Container(
+            width: _homeBannerAd!.size.width.toDouble(),
+            height: _homeBannerAd!.size.height.toDouble(),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: AdWidget(
+              ad: _homeBannerAd!,
+            ),
+          ),
         );
       }
+
       return const SizedBox.shrink();
     });
   }
