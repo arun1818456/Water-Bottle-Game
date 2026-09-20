@@ -72,6 +72,17 @@ class AdsService extends GetxService {
   Future<AdsService> init() async {
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       try {
+        // Child-safe ad treatment for all ad requests.
+        final RequestConfiguration requestConfiguration =
+        RequestConfiguration(
+          ageRestrictedTreatment: AgeRestrictedTreatment.child,
+          maxAdContentRating: MaxAdContentRating.g,
+        );
+
+        await MobileAds.instance.updateRequestConfiguration(
+          requestConfiguration,
+        );
+
         await MobileAds.instance.initialize();
         _isInitialized = true;
         loadHomeBanner();
