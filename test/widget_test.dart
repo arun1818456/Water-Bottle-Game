@@ -30,7 +30,7 @@ void main() {
     Get.testMode = true;
     await Get.putAsync(() => StorageService().init());
     await Get.putAsync(() => AudioService().init());
-    await Get.putAsync(() => AdsService().init());
+    // await Get.putAsync(() => AdsService().init());
   });
 
   tearDown(() {

@@ -370,7 +370,7 @@ class HomeView extends StatelessWidget {
               const Spacer(flex: 1),
 
               // AdMob Banner at bottom of home screen
-              controller.ads.getHomeBannerWidget(),
+              // controller.ads.getHomeBannerWidget(),
 
               const SizedBox(height: 8),
             ],

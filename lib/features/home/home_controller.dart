@@ -5,12 +5,12 @@ import '../../core/services/storage_service.dart';
 
 class HomeController extends GetxController {
   final storage = StorageService.to;
-  final ads = AdsService.to;
+  // final ads = AdsService.to;
 
   @override
   void onInit() {
     super.onInit();
-    ads.loadHomeBanner();
+    // ads.loadHomeBanner();
   }
 
   void onPlayPressed() {

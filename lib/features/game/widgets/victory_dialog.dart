@@ -44,16 +44,16 @@ class _VictoryDialogState extends State<VictoryDialog> {
     if (_doubleCoinsClaimed) return;
     AudioService.to.playButtonClick();
 
-    AdsService.to.showRewardedAd(
-      onUserEarnedReward: (reward) {
-        setState(() {
-          _doubleCoinsClaimed = true;
-          final extraCoins = widget.baseCoins;
-          _totalEarnedCoins += extraCoins;
-          StorageService.to.addCoins(extraCoins);
-        });
-      },
-    );
+    // AdsService.to.showRewardedAd(
+    //   onUserEarnedReward: (reward) {
+    //     setState(() {
+    //       _doubleCoinsClaimed = true;
+    //       final extraCoins = widget.baseCoins;
+    //       _totalEarnedCoins += extraCoins;
+    //       StorageService.to.addCoins(extraCoins);
+    //     });
+    //   },
+    // );
   }
 
   @override

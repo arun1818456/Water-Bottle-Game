@@ -341,9 +341,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     await StorageService.to.addCoins(totalEarned);
 
     // Show Interstitial ad if eligible (every 4 levels)
-    await Future.delayed(const Duration(milliseconds: 900));
-
-    AdsService.to.showInterstitialIfEligible(onComplete: () {
+    // await Future.delayed(const Duration(milliseconds: 900));
+    //
+    // AdsService.to.showInterstitialIfEligible(onComplete: () {
       Get.dialog(
         VictoryDialog(
           levelId: levelId.value,
@@ -355,7 +355,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         ),
         barrierDismissible: false,
       );
-    });
+    // });
   }
 
   void _handleDefeat() {
@@ -395,12 +395,12 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       _provideHint();
     } else {
       // Ad required
-      AudioService.to.playButtonClick();
-      AdsService.to.showRewardedAd(
-        onUserEarnedReward: (reward) {
+      // AudioService.to.playButtonClick();
+      // AdsService.to.showRewardedAd(
+      //   onUserEarnedReward: (reward) {
           _provideHint();
-        },
-      );
+      //   },
+      // );
     }
   }
 
@@ -427,11 +427,11 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void addExtraEmptyBottleWithAd() {
-    AdsService.to.showRewardedAd(
-      onUserEarnedReward: (reward) {
+    // AdsService.to.showRewardedAd(
+    //   onUserEarnedReward: (reward) {
         addExtraEmptyBottle();
-      },
-    );
+    //   },
+    // );
   }
 
   void addExtraEmptyBottle() {
