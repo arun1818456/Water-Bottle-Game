@@ -1,11 +1,11 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../constants/assets_constants.dart';
 import 'storage_service.dart';
 
 /// AudioService manages background music and sound effects using audioplayers.
-class AudioService extends GetxService {
+class AudioService extends GetxService with WidgetsBindingObserver {
   static AudioService get to => Get.find<AudioService>();
 
   AudioPlayer? _musicPlayer;
@@ -13,6 +13,9 @@ class AudioService extends GetxService {
   AudioPlayer? _pourPlayer;
 
   bool _isMusicPlaying = false;
+  bool _isMusicPaused = false;
+  bool _isAppInForeground = true;
+  Worker? _musicSettingWorker;
 
   Future<AudioService> init() async {
     try {
@@ -20,16 +23,18 @@ class AudioService extends GetxService {
       _sfxPlayer = AudioPlayer();
       _pourPlayer = AudioPlayer();
 
-      // Configure background music loop
+      // Configure background music loop and keep it low so short SFX
+      // can still play without silencing the ambient track.
       await _musicPlayer?.setReleaseMode(ReleaseMode.loop);
-      await _musicPlayer?.setVolume(0.35);
+      await _musicPlayer?.setVolume(0.08);
 
-      await _sfxPlayer?.setVolume(0.85);
-      await _pourPlayer?.setVolume(0.8);
+      await _sfxPlayer?.setVolume(0.72);
+      await _pourPlayer?.setVolume(0.76);
 
       // Listen to changes in storage settings
-      ever(StorageService.to.musicEnabled, (bool enabled) {
-        if (enabled) {
+      WidgetsBinding.instance.addObserver(this);
+      _musicSettingWorker = ever(StorageService.to.musicEnabled, (bool enabled) {
+        if (enabled && _isAppInForeground) {
           startBackgroundMusic();
         } else {
           stopBackgroundMusic();
@@ -47,25 +52,64 @@ class AudioService extends GetxService {
   }
 
   Future<void> startBackgroundMusic() async {
-    if (!StorageService.to.musicEnabled.value) return;
+    if (!StorageService.to.musicEnabled.value || !_isAppInForeground) return;
     try {
-      if (!_isMusicPlaying && _musicPlayer != null) {
+      if (_musicPlayer == null || _isMusicPlaying) return;
+
+      if (_isMusicPaused) {
+        await _musicPlayer!.resume();
+      } else {
         await _musicPlayer!.play(AssetSource(AssetsConstants.audioAmbient));
-        _isMusicPlaying = true;
       }
+      _isMusicPaused = false;
+      _isMusicPlaying = true;
     } catch (e) {
       debugPrint('AudioService: Failed to play ambient music: $e');
     }
   }
 
-  Future<void> stopBackgroundMusic() async {
+  /// Pauses rather than stops so a returning player hears the same loop position.
+  Future<void> pauseBackgroundMusic() async {
     try {
       if (_isMusicPlaying && _musicPlayer != null) {
+        await _musicPlayer!.pause();
+        _isMusicPlaying = false;
+        _isMusicPaused = true;
+      }
+    } catch (e) {
+      debugPrint('AudioService: Failed to pause ambient music: $e');
+    }
+  }
+
+  Future<void> stopBackgroundMusic() async {
+    try {
+      if ((_isMusicPlaying || _isMusicPaused) && _musicPlayer != null) {
         await _musicPlayer!.stop();
         _isMusicPlaying = false;
+        _isMusicPaused = false;
       }
     } catch (e) {
       debugPrint('AudioService: Failed to stop ambient music: $e');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _isAppInForeground = true;
+        startBackgroundMusic();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        _isAppInForeground = false;
+        pauseBackgroundMusic();
+        break;
+      case AppLifecycleState.detached:
+        _isAppInForeground = false;
+        stopBackgroundMusic();
+        break;
     }
   }
 
@@ -73,7 +117,6 @@ class AudioService extends GetxService {
     if (!StorageService.to.soundEnabled.value) return;
     try {
       if (_sfxPlayer != null) {
-        await _sfxPlayer!.stop();
         await _sfxPlayer!.play(AssetSource(AssetsConstants.audioClick));
       }
     } catch (e) {
@@ -85,7 +128,6 @@ class AudioService extends GetxService {
     if (!StorageService.to.soundEnabled.value) return;
     try {
       if (_pourPlayer != null) {
-        await _pourPlayer!.stop();
         await _pourPlayer!.play(AssetSource(AssetsConstants.audioPour));
       }
     } catch (e) {
@@ -97,7 +139,6 @@ class AudioService extends GetxService {
     if (!StorageService.to.soundEnabled.value) return;
     try {
       if (_sfxPlayer != null) {
-        await _sfxPlayer!.stop();
         await _sfxPlayer!.play(AssetSource(AssetsConstants.audioWin));
       }
     } catch (e) {
@@ -107,6 +148,8 @@ class AudioService extends GetxService {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _musicSettingWorker?.dispose();
     _musicPlayer?.dispose();
     _sfxPlayer?.dispose();
     _pourPlayer?.dispose();
