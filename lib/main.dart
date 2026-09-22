@@ -64,6 +64,11 @@ class AquaSortMasterApp extends StatelessWidget {
           transition: Transition.fade,
         ),
         GetPage(
+          name: '/tutorial',
+          page: () => const GameView(isTutorial: true),
+          transition: Transition.fade,
+        ),
+        GetPage(
           name: '/game',
           page: () {
             final args = Get.arguments as Map<String, dynamic>?;

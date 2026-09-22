@@ -17,8 +17,9 @@ import '../widgets/victory_dialog.dart';
 /// GameController drives liquid sort mechanics, animations, solver hints, and win/loss states
 class GameController extends GetxController with GetTickerProviderStateMixin {
   final int initialLevelId;
+  final bool isTutorial;
 
-  GameController({this.initialLevelId = 1});
+  GameController({this.initialLevelId = 1, this.isTutorial = false});
 
   // Reactive Game State
   final RxInt levelId = 1.obs;
@@ -50,6 +51,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   final RxnInt hintTargetIndex = RxnInt();
   final RxBool isGameWon = false.obs;
   final RxBool showCelebration = false.obs;
+  // 0 = choose the filled bottle, 1 = choose the empty bottle.
+  final RxInt tutorialStep = 0.obs;
 
   // Keys for bottle render boxes to calculate precise pour coordinates
   final Map<int, GlobalKey> bottleKeys = {};
@@ -98,6 +101,18 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     undoUsedCount.value = 0;
     hintUsedCount.value = 0;
     addedExtraBottle.value = false;
+    tutorialStep.value = 0;
+
+    if (isTutorial) {
+      difficulty.value = 'Tutorial';
+      // This is a self-contained demonstration, not the real first level:
+      // move the single top layer into the bottle that already has three.
+      bottles.assignAll([
+        Bottle(layers: [1]),
+        Bottle(layers: [1, 1, 1]),
+      ]);
+      return;
+    }
 
     // Load handcrafted or procedural level
     _originalLevelData = await LevelManager.loadLevel(id);
@@ -133,12 +148,15 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         return;
       }
       // If bottle is already full and completed, no need to pour out of it
-      if (tappedBottle.isCompleted && tappedBottle.isFull) {
+      if (!isTutorial && tappedBottle.isCompleted && tappedBottle.isFull) {
         HapticFeedbackHelper.selectionClick();
         return;
       }
 
       selectedBottleIndex.value = index;
+      if (isTutorial && index == 0) {
+        tutorialStep.value = 1;
+      }
       AudioService.to.playButtonClick();
       HapticFeedbackHelper.lightImpact();
       return;
@@ -337,8 +355,12 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     final totalEarned = AppConstants.coinsPerLevelClear + starBonus;
 
-    await StorageService.to.completeLevel(levelId.value, stars);
-    await StorageService.to.addCoins(totalEarned);
+    if (isTutorial) {
+      await StorageService.to.completeTutorial();
+    } else {
+      await StorageService.to.completeLevel(levelId.value, stars);
+      await StorageService.to.addCoins(totalEarned);
+    }
 
     // Show Interstitial ad if eligible (every 4 levels)
     // await Future.delayed(const Duration(milliseconds: 900));
@@ -351,7 +373,12 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           baseCoins: totalEarned,
           onNextLevel: () => nextLevel(),
           onRestart: () => restartLevel(),
-          onHome: () => Get.back(),
+          onHome: () => isTutorial ? Get.offAllNamed('/home') : Get.back(),
+          showNextLevel: !isTutorial,
+          showReplay: !isTutorial,
+          homeLabel: isTutorial ? 'Home' : 'Levels',
+          title: isTutorial ? 'WELL DONE!' : 'VICTORY!',
+          subtitle: isTutorial ? 'Tutorial Complete' : 'Level ${levelId.value} Cleared',
         ),
         barrierDismissible: false,
       );

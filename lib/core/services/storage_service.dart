@@ -17,6 +17,7 @@ class StorageService extends GetxService {
   static const String _keyCurrentLevel = 'asm_current_level';
   static const String _keyLevelStars = 'asm_level_stars';
   static const String _keyCompletedCount = 'asm_completed_count';
+  static const String _keyTutorialCompleted = 'asm_tutorial_completed';
 
   static const String _keyBottleSkins = 'asm_unlocked_bottle_skins';
   static const String _keyEquippedBottle = 'asm_equipped_bottle';
@@ -36,6 +37,7 @@ class StorageService extends GetxService {
   final RxInt currentLevel = 1.obs;
   final RxMap<int, int> levelStars = <int, int>{}.obs;
   final RxInt completedCount = 0.obs;
+  final RxBool tutorialCompleted = false.obs;
 
   final RxList<String> unlockedBottleSkins = <String>['glass'].obs;
   final RxString equippedBottleSkin = 'glass'.obs;
@@ -60,6 +62,7 @@ class StorageService extends GetxService {
     unlockedLevel.value = _prefs.getInt(_keyUnlockedLevel) ?? 1;
     currentLevel.value = _prefs.getInt(_keyCurrentLevel) ?? 1;
     completedCount.value = _prefs.getInt(_keyCompletedCount) ?? 0;
+    tutorialCompleted.value = _prefs.getBool(_keyTutorialCompleted) ?? false;
 
     // Load stars map
     final starsRaw = _prefs.getString(_keyLevelStars);
@@ -148,6 +151,12 @@ class StorageService extends GetxService {
 
   bool isLevelUnlocked(int levelId) {
     return levelId <= unlockedLevel.value;
+  }
+
+  /// The interactive tutorial is only dismissed after the player completes it.
+  Future<void> completeTutorial() async {
+    tutorialCompleted.value = true;
+    await _prefs.setBool(_keyTutorialCompleted, true);
   }
 
   // --- Cosmetics & Shop ---
@@ -268,6 +277,7 @@ class StorageService extends GetxService {
     unlockedLevel.value = 1;
     currentLevel.value = 1;
     completedCount.value = 0;
+    tutorialCompleted.value = false;
     levelStars.clear();
     unlockedBottleSkins.assignAll(['glass']);
     equippedBottleSkin.value = 'glass';

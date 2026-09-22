@@ -15,6 +15,11 @@ class VictoryDialog extends StatefulWidget {
   final VoidCallback onNextLevel;
   final VoidCallback onRestart;
   final VoidCallback onHome;
+  final bool showNextLevel;
+  final bool showReplay;
+  final String homeLabel;
+  final String title;
+  final String subtitle;
 
   const VictoryDialog({
     super.key,
@@ -24,7 +29,12 @@ class VictoryDialog extends StatefulWidget {
     required this.onNextLevel,
     required this.onRestart,
     required this.onHome,
-  });
+    this.showNextLevel = true,
+    this.showReplay = true,
+    this.homeLabel = 'Levels',
+    this.title = 'VICTORY!',
+    String? subtitle,
+  }) : subtitle = subtitle ?? 'Level $levelId Cleared';
 
   @override
   State<VictoryDialog> createState() => _VictoryDialogState();
@@ -83,8 +93,8 @@ class _VictoryDialogState extends State<VictoryDialog> {
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [Color(0xFFFFD700), Color(0xFFFF9100)],
               ).createShader(bounds),
-              child: const Text(
-                'VICTORY!',
+              child: Text(
+                widget.title,
                 style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w900,
@@ -97,7 +107,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
             const SizedBox(height: 8),
 
             Text(
-              'Level ${widget.levelId} Cleared',
+              widget.subtitle,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -198,13 +208,14 @@ class _VictoryDialogState extends State<VictoryDialog> {
             const SizedBox(height: 14),
 
             // Next Level Button
-            GestureDetector(
+            if (widget.showNextLevel)
+              GestureDetector(
               onTap: () {
                 AudioService.to.playButtonClick();
                 Get.back();
                 widget.onNextLevel();
               },
-              child: Container(
+                child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 decoration: AppTheme.gradientButtonBox(),
@@ -219,15 +230,16 @@ class _VictoryDialogState extends State<VictoryDialog> {
                     ),
                   ),
                 ),
+                ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+            SizedBox(height: widget.showNextLevel ? 12 : 0),
 
             // Restart & Level Select Row
             Row(
               children: [
-                Expanded(
+                if (widget.showReplay)
+                  Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.white38),
@@ -243,7 +255,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
                     label: const Text('Replay', style: TextStyle(color: Colors.white)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                if (widget.showReplay) const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
@@ -257,7 +269,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
                       widget.onHome();
                     },
                     icon: const Icon(Icons.grid_view_rounded, size: 18, color: Colors.white),
-                    label: const Text('Levels', style: TextStyle(color: Colors.white)),
+                    label: Text(widget.homeLabel, style: const TextStyle(color: Colors.white)),
                   ),
                 ),
               ],
