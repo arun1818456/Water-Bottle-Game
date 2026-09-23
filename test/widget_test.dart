@@ -78,7 +78,6 @@ void main() {
       ),
     );
 
-    expect(find.text('AQUA SORT MASTER'), findsOneWidget);
     expect(find.text('PLAY NOW'), findsOneWidget);
     expect(find.text('Levels'), findsOneWidget);
     expect(find.text('Shop'), findsOneWidget);

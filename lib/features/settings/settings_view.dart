@@ -130,6 +130,14 @@ class SettingsView extends StatelessWidget {
                           ),
                           const Divider(color: Colors.white12, height: 1),
                           _buildActionTile(
+                            icon: Icons.update_rounded,
+                            iconColor: const Color(0xFF42A5F5),
+                            title: 'Update App',
+                            subtitle: 'Get the latest version from Play Store',
+                            onTap: controller.updateApp,
+                          ),
+                          const Divider(color: Colors.white12, height: 1),
+                          _buildActionTile(
                             icon: Icons.star_rate_rounded,
                             iconColor: const Color(0xFFFFD700),
                             title: 'Rate App',

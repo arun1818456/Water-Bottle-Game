@@ -1,7 +1,7 @@
-import 'package:get/get.dart';
-import '../../core/services/storage_service.dart';
-import '../../core/constants/app_images.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../core/constants/app_images.dart';
+import '../../core/services/storage_service.dart';
 
 class SplashController extends GetxController {
   final RxDouble progress = 0.0.obs;
@@ -30,6 +30,13 @@ class SplashController extends GetxController {
     await homeAssets;
 
     await Future.delayed(const Duration(milliseconds: 250));
-    Get.offNamed('/tutorial');
+
+    // Check if app is opened for the first time (tutorial not yet completed)
+    final isFirstTime = !StorageService.to.tutorialCompleted.value;
+    if (isFirstTime) {
+      Get.offNamed('/tutorial');
+    } else {
+      Get.offNamed('/home');
+    }
   }
 }

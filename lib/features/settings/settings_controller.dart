@@ -5,6 +5,8 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class SettingsController extends GetxController {
   final storage = StorageService.to;
   final RxString versionString = AppConstants.appVersion.obs;
@@ -98,6 +100,38 @@ class SettingsController extends GetxController {
         ],
       ),
     );
+  }
+
+  void updateApp() async {
+    AudioService.to.playButtonClick();
+    final url = Uri.parse('market://details?id=com.aruninnovationstudio.water_bottle_ais');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        // Fallback to web link if Play Store app is not available
+        final webUrl = Uri.parse('https://play.google.com/store/apps/details?id=com.aruninnovationstudio.water_bottle_ais');
+        if (await canLaunchUrl(webUrl)) {
+          await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+        } else {
+          Get.snackbar(
+            'Error',
+            'Could not open the Play Store',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.black87,
+            colorText: Colors.white,
+          );
+        }
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Could not open the Play Store',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+      );
+    }
   }
 
   void rateApp() {
