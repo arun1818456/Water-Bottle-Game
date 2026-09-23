@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:water_bottle_ais/core/constants/app_images.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/theme/app_theme.dart';
 import 'home_controller.dart';
 import 'widgets/interactive_water_drop.dart';
 

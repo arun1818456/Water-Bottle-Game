@@ -75,8 +75,8 @@ class _SplashViewState extends State<SplashView> {
                 shaderCallback: (bounds) => const LinearGradient(
                   colors: [AppColors.primaryCyan, Color(0xFF80D8FF), Colors.white],
                 ).createShader(bounds),
-                child: const Text(
-                  'AIS WATER BOTTLE',
+                child: Text(
+                  AppConstants.appName.toUpperCase(),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
@@ -131,7 +131,7 @@ class _SplashViewState extends State<SplashView> {
                 'Powered by Arun innovation Studio',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.white24,
+                  color: Colors.white,
                 ),
               ),
 

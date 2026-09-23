@@ -3,8 +3,8 @@ class AppConstants {
   AppConstants._();
 
   // App Metadata
-  static const String appName = 'Aqua Sort Master';
-  static const String appVersion = '1.0.0';
+  static const String appName = 'AIS Water Bottle';
+  static const String appVersion = '1.3.0';
 
   // Game Rules
   static const int maxBottleCapacity = 4;

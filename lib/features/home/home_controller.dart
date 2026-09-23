@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import '../../core/services/ads_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
 
@@ -7,11 +6,6 @@ class HomeController extends GetxController {
   final storage = StorageService.to;
   // final ads = AdsService.to;
 
-  @override
-  void onInit() {
-    super.onInit();
-    // ads.loadHomeBanner();
-  }
 
   void onPlayPressed() {
     AudioService.to.playButtonClick();

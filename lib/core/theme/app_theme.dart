@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
-/// App theme configurations for Aqua Sort Master
+/// App theme configurations for AIS Water Bottle
 class AppTheme {
   AppTheme._();
 

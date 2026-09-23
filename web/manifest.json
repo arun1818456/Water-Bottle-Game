@@ -1,6 +1,6 @@
 {
-    "name": "water_bottle_ais",
-    "short_name": "water_bottle_ais",
+    "name": "AIS Water Bottle",
+    "short_name": "AIS Water Bottle",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/services.dart';
-import 'package:water_bottle_ais/core/services/ads_service.dart';
 import 'package:water_bottle_ais/core/services/audio_service.dart';
 import 'package:water_bottle_ais/core/services/storage_service.dart';
 import 'package:water_bottle_ais/features/game/models/bottle.dart';

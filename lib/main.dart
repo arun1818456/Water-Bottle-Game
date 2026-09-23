@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'core/constants/app_constants.dart';
-import 'core/services/ads_service.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/theme/app_theme.dart';
@@ -38,11 +37,11 @@ void main() async {
   await Get.putAsync(() => AudioService().init());
   // await Get.putAsync(() => AdsService().init());
 
-  runApp(const AquaSortMasterApp());
+  runApp(const AisWaterBottleApp());
 }
 
-class AquaSortMasterApp extends StatelessWidget {
-  const AquaSortMasterApp({super.key});
+class AisWaterBottleApp extends StatelessWidget {
+  const AisWaterBottleApp({super.key});
 
   @override
   Widget build(BuildContext context) {

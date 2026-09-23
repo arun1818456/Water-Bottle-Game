@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
-import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Victory celebration popup modal
@@ -41,7 +39,7 @@ class VictoryDialog extends StatefulWidget {
 }
 
 class _VictoryDialogState extends State<VictoryDialog> {
-  bool _doubleCoinsClaimed = false;
+  final bool _doubleCoinsClaimed = false;
   late int _totalEarnedCoins;
 
   @override

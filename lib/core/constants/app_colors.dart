@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Central color definitions for Aqua Sort Master
+/// Central color definitions for AIS Water Bottle
 class AppColors {
   AppColors._();
 
