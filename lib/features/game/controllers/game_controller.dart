@@ -37,6 +37,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   final Rx<Offset> streamEnd = Offset.zero.obs;
   final RxInt streamColor = 1.obs;
   final RxDouble streamProgress = 0.0.obs;
+  final RxInt pouringAmount = 0.obs;
 
   // History & Metrics
   final List<GameMove> moveHistory = [];
@@ -68,7 +69,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     _pourAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 650),
+      duration: const Duration(milliseconds: 900),
     );
 
     loadLevel(levelId.value);
@@ -91,6 +92,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     levelId.value = id;
     selectedBottleIndex.value = null;
     isPouring.value = false;
+    pouringAmount.value = 0;
     isGameWon.value = false;
     showCelebration.value = false;
     hintSourceIndex.value = null;
@@ -205,6 +207,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     // Calculate source and target coordinates for stream
     _calculateStreamCoordinates(fromIdx, toIdx);
     streamColor.value = colorToPour;
+    pouringAmount.value = amountToPour;
 
     // Determine tilt direction (tilt left if target is to the left, else right)
     final tiltDirection = (toIdx < fromIdx) ? -1.0 : 1.0;
@@ -263,6 +266,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     selectedBottleIndex.value = null;
     pouringSourceIndex.value = -1;
     pouringTargetIndex.value = -1;
+    pouringAmount.value = 0;
     pourTiltAngle.value = 0.0;
     pourTiltOffset.value = Offset.zero;
     streamProgress.value = 0.0;

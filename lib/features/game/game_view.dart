@@ -498,6 +498,15 @@ class GameView extends StatelessWidget {
     final isHintSource = controller.hintSourceIndex.value == index;
     final isHintTarget = controller.hintTargetIndex.value == index;
     final isPouringSource = controller.pouringSourceIndex.value == index;
+    final isPouringTarget = controller.pouringTargetIndex.value == index;
+
+    final drainAmount = isPouringSource
+        ? controller.streamProgress.value * controller.pouringAmount.value
+        : 0.0;
+    final fillAmount = isPouringTarget
+        ? controller.streamProgress.value * controller.pouringAmount.value
+        : 0.0;
+    final fillColor = isPouringTarget ? controller.streamColor.value : null;
 
     return BottleWidget(
       key: controller.getBottleKey(index),
@@ -509,6 +518,9 @@ class GameView extends StatelessWidget {
       skinType: skinType,
       tiltAngle: isPouringSource ? controller.pourTiltAngle.value : 0.0,
       tiltOffset: isPouringSource ? controller.pourTiltOffset.value : Offset.zero,
+      drainAmount: drainAmount,
+      fillAmount: fillAmount,
+      fillColor: fillColor,
       onTap: () => controller.onBottleTapped(index),
     );
   }

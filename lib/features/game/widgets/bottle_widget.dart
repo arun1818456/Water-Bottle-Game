@@ -16,6 +16,9 @@ class BottleWidget extends StatefulWidget {
   final String skinType;
   final double tiltAngle; // in radians, negative for tilt left, positive for tilt right
   final Offset tiltOffset; // translation offset during pour
+  final double drainAmount;
+  final double fillAmount;
+  final int? fillColor;
   final VoidCallback onTap;
 
   const BottleWidget({
@@ -29,6 +32,9 @@ class BottleWidget extends StatefulWidget {
     this.skinType = 'glass',
     this.tiltAngle = 0.0,
     this.tiltOffset = Offset.zero,
+    this.drainAmount = 0.0,
+    this.fillAmount = 0.0,
+    this.fillColor,
   });
 
   @override
@@ -192,6 +198,10 @@ class _BottleWidgetState extends State<BottleWidget>
                             isHintSource: widget.isHintSource,
                             isHintTarget: widget.isHintTarget,
                             wavePhase: _waveController.value * 2 * pi,
+                            tiltAngle: widget.tiltAngle,
+                            drainAmount: widget.drainAmount,
+                            fillAmount: widget.fillAmount,
+                            fillColor: widget.fillColor,
                           ),
                         ),
                       ),
