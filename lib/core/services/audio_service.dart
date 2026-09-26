@@ -52,7 +52,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
       // Reduced SFX volumes for pleasant and balanced audio
       await _sfxPlayer?.setVolume(0.35);
       await _bottleTapPlayer?.setVolume(0.40);
-      await _pourPlayer?.setVolume(0.40);
+      await _pourPlayer?.setVolume(0.18);
       await _winPlayer?.setVolume(0.45);
 
       // Listen to player state to track playing status and auto-recover if interrupted
@@ -220,6 +220,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     if (!StorageService.to.soundEnabled.value || !_isAppInForeground) return;
     try {
       if (_pourPlayer != null) {
+        await _pourPlayer!.setVolume(0.18);
         await _pourPlayer!.play(AssetSource(AssetsConstants.audioPour));
       }
     } catch (e) {
