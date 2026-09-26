@@ -11,6 +11,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
   AudioPlayer? _musicPlayer;
   AudioPlayer? _sfxPlayer;
+  AudioPlayer? _bottleTapPlayer;
   AudioPlayer? _pourPlayer;
   AudioPlayer? _winPlayer;
 
@@ -40,6 +41,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
       _musicPlayer = AudioPlayer();
       _sfxPlayer = AudioPlayer();
+      _bottleTapPlayer = AudioPlayer();
       _pourPlayer = AudioPlayer();
       _winPlayer = AudioPlayer();
 
@@ -49,6 +51,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
 
       // Reduced SFX volumes for pleasant and balanced audio
       await _sfxPlayer?.setVolume(0.35);
+      await _bottleTapPlayer?.setVolume(0.40);
       await _pourPlayer?.setVolume(0.40);
       await _winPlayer?.setVolume(0.45);
 
@@ -156,6 +159,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
         await _musicPlayer!.pause();
       }
       await _sfxPlayer?.stop();
+      await _bottleTapPlayer?.stop();
       await _pourPlayer?.stop();
       await _winPlayer?.stop();
     } catch (e) {
@@ -200,6 +204,18 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     }
   }
 
+  /// Plays crystal glass clink sound when tapping a bottle
+  Future<void> playBottleTapSound() async {
+    if (!StorageService.to.soundEnabled.value || !_isAppInForeground) return;
+    try {
+      if (_bottleTapPlayer != null) {
+        await _bottleTapPlayer!.play(AssetSource(AssetsConstants.audioBottleTap));
+      }
+    } catch (e) {
+      debugPrint('AudioService: Bottle tap error: $e');
+    }
+  }
+
   Future<void> playPourSound() async {
     if (!StorageService.to.soundEnabled.value || !_isAppInForeground) return;
     try {
@@ -230,6 +246,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     _musicSettingWorker?.dispose();
     _musicPlayer?.dispose();
     _sfxPlayer?.dispose();
+    _bottleTapPlayer?.dispose();
     _pourPlayer?.dispose();
     _winPlayer?.dispose();
     super.onClose();

@@ -156,7 +156,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       if (isTutorial && index == 0) {
         tutorialStep.value = 1;
       }
-      AudioService.to.playButtonClick();
+      AudioService.to.playBottleTapSound();
       HapticFeedbackHelper.lightImpact();
       return;
     }
@@ -167,7 +167,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     if (selectedIdx == index) {
       // Tap same bottle again to deselect
       selectedBottleIndex.value = null;
-      AudioService.to.playButtonClick();
+      AudioService.to.playBottleTapSound();
       HapticFeedbackHelper.selectionClick();
       return;
     }
@@ -182,7 +182,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       // If tapped bottle is non-empty and not complete, switch selection to it
       if (targetBottle.isNotEmpty && !(targetBottle.isCompleted && targetBottle.isFull)) {
         selectedBottleIndex.value = index;
-        AudioService.to.playButtonClick();
+        AudioService.to.playBottleTapSound();
         HapticFeedbackHelper.lightImpact();
       } else {
         // Invalid destination

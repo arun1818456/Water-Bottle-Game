@@ -4,6 +4,7 @@ class AssetsConstants {
 
   // Audio paths
   static const String audioClick = 'audio/click.wav';
+  static const String audioBottleTap = 'audio/bottle_tap.wav';
   static const String audioPour = 'audio/pour.wav';
   static const String audioWin = 'audio/win.wav';
   static const String audioAmbient = 'audio/ambient.wav';
