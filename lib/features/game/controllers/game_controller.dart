@@ -365,6 +365,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     // await Future.delayed(const Duration(milliseconds: 900));
     //
     // AdsService.to.showInterstitialIfEligible(onComplete: () {
+      await Future.delayed(const Duration(milliseconds: 700));
       Get.dialog(
         VictoryDialog(
           levelId: levelId.value,

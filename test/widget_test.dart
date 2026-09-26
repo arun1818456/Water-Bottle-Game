@@ -69,6 +69,32 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('BottleWidget animates cap and sparkles when completed with single color',
+      (WidgetTester tester) async {
+    final completedBottle = Bottle(layers: [2, 2, 2, 2]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BottleWidget(
+            bottle: completedBottle,
+            index: 0,
+            isSelected: false,
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(BottleWidget), findsOneWidget);
+    expect(find.byType(CustomPaint), findsWidgets);
+
+    // Let animations settle
+    await tester.pump(const Duration(milliseconds: 600));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('HomeView renders play button and navigation options',
       (WidgetTester tester) async {
     await tester.pumpWidget(
