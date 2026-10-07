@@ -442,7 +442,32 @@ class GameView extends StatelessWidget {
     );
   }
 
-  /// Responsive 2-Row Bottle Grid
+  List<int> _getRowLayout(int count) {
+    switch (count) {
+      case 1: return [1];
+      case 2: return [2];
+      case 3: return [3];
+      case 4: return [2, 2];
+      case 5: return [2, 3];
+      case 6: return [3, 3];
+      case 7: return [3, 4];
+      case 8: return [4, 4];
+      case 9: return [3, 3, 3];
+      case 10: return [3, 4, 3];
+      case 11: return [4, 3, 4];
+      case 12: return [4, 4, 4];
+      case 13: return [4, 5, 4];
+      case 14: return [5, 4, 5];
+      case 15: return [5, 5, 5];
+      default:
+        int rows = (count / 5).ceil();
+        int base = count ~/ rows;
+        int remainder = count % rows;
+        return List.generate(rows, (i) => base + (i < remainder ? 1 : 0));
+    }
+  }
+
+  /// Responsive Bottle Grid based on custom counts
   Widget _buildBottlesGrid(GameController controller, String skinType) {
     final bottleCount = controller.bottles.length;
 
@@ -457,37 +482,37 @@ class GameView extends StatelessWidget {
       );
     }
 
-    // Split bottles into 2 balanced rows
-    final mid = (bottleCount / 4).ceil();
-    final topRowBottles = controller.bottles.sublist(0, mid);
-    final bottomRowBottles = controller.bottles.sublist(mid);
+    final rowSizes = _getRowLayout(bottleCount);
+    
+    int currentIndex = 0;
+    List<Widget> rowWidgets = [];
+
+    for (int i = 0; i < rowSizes.length; i++) {
+      final size = rowSizes[i];
+      
+      rowWidgets.add(
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 14,
+          runSpacing: 20,
+          children: List.generate(size, (idx) {
+            final bottleIndex = currentIndex + idx;
+            return _buildBottleItem(controller, bottleIndex, skinType);
+          }),
+        ),
+      );
+      
+      currentIndex += size;
+      
+      // Add spacing between rows, except for the last row
+      if (i < rowSizes.length - 1) {
+        rowWidgets.add(const SizedBox(height: 28));
+      }
+    }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Top Row
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 14,
-          runSpacing: 20,
-          children: List.generate(topRowBottles.length, (idx) {
-            return _buildBottleItem(controller, idx, skinType);
-          }),
-        ),
-
-        const SizedBox(height: 28),
-
-        // Bottom Row
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 14,
-          runSpacing: 20,
-          children: List.generate(bottomRowBottles.length, (idx) {
-            final actualIdx = mid + idx;
-            return _buildBottleItem(controller, actualIdx, skinType);
-          }),
-        ),
-      ],
+      children: rowWidgets,
     );
   }
 
