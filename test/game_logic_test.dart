@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:water_bottle_ais/features/game/models/bottle.dart';
-import 'package:water_bottle_ais/features/game/models/game_move.dart';
+import 'package:water_bottle_ais/exports.dart';
 
 void main() {
   group('Bottle Logic & Pour Rules', () {
@@ -11,7 +10,7 @@ void main() {
       expect(bottle.availableSpace, equals(4));
       expect(bottle.topColor, isNull);
       expect(bottle.topColorCount, equals(0));
-      expect(bottle.isCompleted, isTrue); // Empty bottles count as completed
+      expect(bottle.isCompleted, isTrue);
     });
 
     test('Bottle topColor and topColorCount calculates correctly', () {
@@ -56,13 +55,12 @@ void main() {
       final source = Bottle(layers: [1, 2, 3, 3]);
       final target = Bottle(layers: [5, 3]);
       expect(source.canPourInto(target), isTrue);
-      // Source has 2 of color 3, target has 2 spaces -> pours 2
       expect(source.calculatePourAmount(target), equals(2));
     });
 
     test('Auto-pours maximum possible up to target available space', () {
-      final source = Bottle(layers: [1, 2, 2, 2]); // top has 3 of color 2
-      final target = Bottle(layers: [4, 5, 2]);    // space is 1
+      final source = Bottle(layers: [1, 2, 2, 2]);
+      final target = Bottle(layers: [4, 5, 2]);
       expect(source.calculatePourAmount(target), equals(1));
 
       final poured = source.pourInto(target);
@@ -86,7 +84,6 @@ void main() {
         Bottle(layers: [3, 2]),
       ];
 
-      // Bottle 0 pours top '2' into Bottle 1
       final move = GameMove(
         fromIndex: 0,
         toIndex: 1,
@@ -94,12 +91,10 @@ void main() {
         amount: 1,
       );
 
-      // Execute pour
       bottles[0].pourInto(bottles[1]);
       expect(bottles[0].layers, equals([1]));
       expect(bottles[1].layers, equals([3, 2, 2]));
 
-      // Undo move
       move.undo(bottles);
       expect(bottles[0].layers, equals([1, 2]));
       expect(bottles[1].layers, equals([3, 2]));

@@ -1,14 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:flutter/services.dart';
-import 'package:water_bottle_ais/core/services/audio_service.dart';
-import 'package:water_bottle_ais/core/services/storage_service.dart';
-import 'package:water_bottle_ais/features/game/models/bottle.dart';
-import 'package:water_bottle_ais/features/game/widgets/bottle_widget.dart';
-import 'package:water_bottle_ais/features/home/home_view.dart';
+import 'package:water_bottle_ais/exports.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +21,6 @@ void main() {
     Get.testMode = true;
     await Get.putAsync(() => StorageService().init());
     await Get.putAsync(() => AudioService().init());
-    // await Get.putAsync(() => AdsService().init());
   });
 
   tearDown(() {
@@ -59,13 +50,11 @@ void main() {
     expect(find.byType(BottleWidget), findsOneWidget);
     expect(find.byType(CustomPaint), findsWidgets);
 
-    // Tap bottle
     await tester.tap(find.byType(BottleWidget));
     await tester.pump();
 
     expect(tapped, isTrue);
 
-    // Cleanly unmount to cancel repeating wave animation
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -89,17 +78,16 @@ void main() {
     expect(find.byType(BottleWidget), findsOneWidget);
     expect(find.byType(CustomPaint), findsWidgets);
 
-    // Let animations settle
     await tester.pump(const Duration(milliseconds: 600));
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('HomeView renders play button and navigation options',
+  testWidgets('HomeScreen renders play button and navigation options',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const GetMaterialApp(
-        home: HomeView(),
+        home: HomeScreen(),
       ),
     );
 

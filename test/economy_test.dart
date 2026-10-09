@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:water_bottle_ais/core/constants/app_constants.dart';
+import 'package:water_bottle_ais/exports.dart';
 
 void main() {
   group('Economy & Rewards Tests', () {
