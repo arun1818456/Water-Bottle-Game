@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/services.dart';
+import 'package:water_bottle_ais/core/services/ads_service.dart';
 import 'package:water_bottle_ais/core/services/audio_service.dart';
 import 'package:water_bottle_ais/core/services/storage_service.dart';
 import 'package:water_bottle_ais/features/game/models/bottle.dart';
@@ -29,7 +30,7 @@ void main() {
     Get.testMode = true;
     await Get.putAsync(() => StorageService().init());
     await Get.putAsync(() => AudioService().init());
-    // await Get.putAsync(() => AdsService().init());
+    await Get.putAsync(() => AdsService().init());
   });
 
   tearDown(() {

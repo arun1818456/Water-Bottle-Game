@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'core/constants/app_constants.dart';
+import 'core/services/ads_service.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/theme/app_theme.dart';
@@ -35,7 +36,7 @@ void main() async {
   // Initialize Core Services
   await Get.putAsync(() => StorageService().init());
   await Get.putAsync(() => AudioService().init());
-  // await Get.putAsync(() => AdsService().init());
+  await Get.putAsync(() => AdsService().init());
 
   runApp(const AisWaterBottleApp());
 }

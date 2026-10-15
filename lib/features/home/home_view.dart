@@ -54,7 +54,7 @@ class HomeView extends StatelessWidget {
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFF00CFFF)
-                                  .withOpacity(0.18),
+                                  .withValues(alpha: 0.18),
                               blurRadius: 10,
                               spreadRadius: 1,
                             ),
@@ -132,7 +132,7 @@ class HomeView extends StatelessWidget {
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFF00CFFF)
-                                  .withOpacity(0.18),
+                                  .withValues(alpha: 0.18),
                               blurRadius: 10,
                               spreadRadius: 1,
                             ),
@@ -155,7 +155,7 @@ class HomeView extends StatelessWidget {
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(0xFFFFD700)
-                                        .withOpacity(0.35),
+                                        .withValues(alpha: 0.35),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -273,7 +273,7 @@ class HomeView extends StatelessWidget {
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF00CFFF)
-                              .withOpacity(0.35),
+                              .withValues(alpha: 0.35),
                           blurRadius: 12,
                           spreadRadius: 1,
                         ),
@@ -369,7 +369,7 @@ class HomeView extends StatelessWidget {
               const Spacer(flex: 1),
 
               // AdMob Banner at bottom of home screen
-              // controller.ads.getHomeBannerWidget(),
+              controller.ads.getHomeBannerWidget(),
 
               const SizedBox(height: 8),
             ],
@@ -410,7 +410,7 @@ class HomeView extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF001C52)
-                    .withOpacity(0.35),
+                    .withValues(alpha: 0.35),
                 offset: const Offset(0, 4),
                 blurRadius: 0,
               ),
@@ -429,7 +429,7 @@ class HomeView extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: const Color(0xFF092E68),
                       border: Border.all(
-                        color: color.withOpacity(0.65),
+                        color: color.withValues(alpha: 0.65),
                         width: 1.2,
                       ),
                     ),

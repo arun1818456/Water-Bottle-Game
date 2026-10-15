@@ -1,3 +1,14 @@
+# IDE / Editor Files
+.idea/
+.idea\
+*.iml
+*.iws
+*.ipr
+.vscode/
+android/.idea/
+android/*.iml
+android/app/*.iml
+
 # Miscellaneous
 *.class
 *.lock
@@ -6,13 +17,6 @@
 *.swp
 .buildlog/
 .history
-
-
-
-# Flutter repo-specific
-android\.idea
-android/.idea
-.idea/
 /bin/cache/
 /bin/internal/bootstrap.bat
 /bin/internal/bootstrap.sh

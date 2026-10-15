@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/haptic_feedback_helper.dart';
@@ -395,10 +396,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     }
 
     // Show Interstitial ad if eligible (every 4 levels)
-    // await Future.delayed(const Duration(milliseconds: 900));
-    //
-    // AdsService.to.showInterstitialIfEligible(onComplete: () {
-      await Future.delayed(const Duration(milliseconds: 700));
+    await Future.delayed(const Duration(milliseconds: 900));
+
+    AdsService.to.showInterstitialIfEligible(onComplete: () {
       Get.dialog(
         VictoryDialog(
           levelId: levelId.value,
@@ -415,7 +415,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         ),
         barrierDismissible: false,
       );
-    // });
+    });
   }
 
   void _handleDefeat() {
@@ -450,17 +450,17 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   void requestHint() {
     if (isPouring.value || isGameWon.value) return;
 
-    if (hintUsedCount.value < 3) {
+    if (hintUsedCount.value < 2) {
       // Free hint
       _provideHint();
     } else {
       // Ad required
-      // AudioService.to.playButtonClick();
-      // AdsService.to.showRewardedAd(
-      //   onUserEarnedReward: (reward) {
+      AudioService.to.playButtonClick();
+      AdsService.to.showRewardedAd(
+        onUserEarnedReward: (reward) {
           _provideHint();
-      //   },
-      // );
+        },
+      );
     }
   }
 
@@ -487,11 +487,11 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void addExtraEmptyBottleWithAd() {
-    // AdsService.to.showRewardedAd(
-    //   onUserEarnedReward: (reward) {
+    AdsService.to.showRewardedAd(
+      onUserEarnedReward: (reward) {
         addExtraEmptyBottle();
-    //   },
-    // );
+      },
+    );
   }
 
   void addExtraEmptyBottle() {

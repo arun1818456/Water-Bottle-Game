@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Victory celebration popup modal
@@ -39,7 +41,7 @@ class VictoryDialog extends StatefulWidget {
 }
 
 class _VictoryDialogState extends State<VictoryDialog> {
-  final bool _doubleCoinsClaimed = false;
+   bool _doubleCoinsClaimed = false;
   late int _totalEarnedCoins;
 
   @override
@@ -52,16 +54,16 @@ class _VictoryDialogState extends State<VictoryDialog> {
     if (_doubleCoinsClaimed) return;
     AudioService.to.playButtonClick();
 
-    // AdsService.to.showRewardedAd(
-    //   onUserEarnedReward: (reward) {
-    //     setState(() {
-    //       _doubleCoinsClaimed = true;
-    //       final extraCoins = widget.baseCoins;
-    //       _totalEarnedCoins += extraCoins;
-    //       StorageService.to.addCoins(extraCoins);
-    //     });
-    //   },
-    // );
+    AdsService.to.showRewardedAd(
+      onUserEarnedReward: (reward) {
+        setState(() {
+          _doubleCoinsClaimed = true;
+          final extraCoins = widget.baseCoins;
+          _totalEarnedCoins += extraCoins;
+          StorageService.to.addCoins(extraCoins);
+        });
+      },
+    );
   }
 
   @override
