@@ -97,6 +97,10 @@ class GameView extends StatelessWidget {
                 if (controller.showCelebration.value)
                   const CelebrationOverlay(),
 
+                // Difficulty Splash Animation Layer
+                if (controller.showDifficultySplash.value)
+                  _buildDifficultySplash(difficultyText),
+
                 if (isTutorial)
                   _buildTutorialGuide(controller),
               ],
@@ -856,4 +860,75 @@ class _TutorialFingerState extends State<_TutorialFinger> {
       ),
     );
   }
+}
+
+/// Big center-screen animated splash overlay for Hard/Expert levels
+Widget _buildDifficultySplash(String difficultyText) {
+  Color glowColor = difficultyText == 'Expert' || difficultyText == 'Very Hard' 
+      ? Colors.redAccent 
+      : Colors.orangeAccent;
+
+  return Center(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor.withValues(alpha: 0.6),
+            blurRadius: 30,
+            spreadRadius: 10,
+          ),
+        ],
+        border: Border.all(color: glowColor, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.warning_rounded,
+            color: glowColor,
+            size: 48,
+          )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 400.ms),
+          const SizedBox(height: 12),
+          Text(
+            difficultyText.toUpperCase(),
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 2,
+              shadows: [
+                Shadow(color: glowColor, blurRadius: 10),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Be Careful!',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .scale(
+          begin: const Offset(0.5, 0.5),
+          end: const Offset(1, 1),
+          duration: 500.ms,
+          curve: Curves.easeOutBack,
+        )
+        .fadeIn(duration: 400.ms)
+        .then(delay: 800.ms) // Holds for a moment
+        .fadeOut(duration: 500.ms)
+        .scale(begin: const Offset(1, 1), end: const Offset(1.5, 1.5), duration: 500.ms),
+  );
 }

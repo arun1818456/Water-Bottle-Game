@@ -1,1 +1,15 @@
-{"id":13,"difficulty":"Easy","bottleCount":6,"emptyBottles":0,"bottles":[[1,1],[2,2,3],[3,4,1],[1,2,4,3],[4,4,2],[3]]}
+{
+  "id": 13,
+  "difficulty": "Easy",
+  "bottleCount": 7,
+  "emptyBottles": 2,
+  "bottles": [
+    [5, 3, 7],
+    [8, 5, 8, 7],
+    [9, 9, 3, 8],
+    [5, 7, 5],
+    [8, 7, 9, 3],
+    [3, 9],
+    []
+  ]
+}

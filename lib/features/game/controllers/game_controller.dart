@@ -51,6 +51,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   final RxnInt hintTargetIndex = RxnInt();
   final RxBool isGameWon = false.obs;
   final RxBool showCelebration = false.obs;
+  final RxBool showDifficultySplash = false.obs;
+
   // 0 = choose the filled bottle, 1 = choose the empty bottle.
   final RxInt tutorialStep = 0.obs;
 
@@ -95,6 +97,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     pouringAmount.value = 0;
     isGameWon.value = false;
     showCelebration.value = false;
+    showDifficultySplash.value = false;
     hintSourceIndex.value = null;
     hintTargetIndex.value = null;
     moveHistory.clear();
@@ -118,6 +121,13 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     // Load handcrafted or procedural level
     _originalLevelData = await LevelManager.loadLevel(id);
     difficulty.value = _originalLevelData.difficulty;
+
+    if (difficulty.value == 'Hard' || difficulty.value == 'Expert' || difficulty.value == 'Very Hard') {
+      showDifficultySplash.value = true;
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        showDifficultySplash.value = false;
+      });
+    }
 
     // Convert to bottle models
     final loadedBottles = _originalLevelData.bottles

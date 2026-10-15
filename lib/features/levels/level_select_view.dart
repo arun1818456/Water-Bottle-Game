@@ -63,9 +63,6 @@ class LevelSelectView extends StatelessWidget {
 
                   const SizedBox(height: 10),
 
-                  // Difficulty Filter Carousel
-                  _buildDifficultyTabs(controller, selectedTab),
-
                   const SizedBox(height: 12),
 
                   // Levels Grid
@@ -162,7 +159,7 @@ class LevelSelectView extends StatelessWidget {
                 ),
               ),
               const Text(
-                '120 Handcrafted Challenges',
+                'Handcrafted Challenges',
                 style: TextStyle(
                   fontSize: 11,
                   color: AppColors.textSecondary,
@@ -329,75 +326,6 @@ class LevelSelectView extends StatelessWidget {
         ),
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0);
-  }
-
-  /// Difficulty Tabs Carousel
-  Widget _buildDifficultyTabs(LevelController controller, int selectedTab) {
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: controller.difficultyTabs.length,
-        itemBuilder: (context, index) {
-          final isSelected = selectedTab == index;
-          final label = controller.difficultyTabs[index];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => controller.selectTab(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                      ? const LinearGradient(
-                          colors: [Color(0xFF00E5FF), Color(0xFF0072FF)],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        )
-                      : LinearGradient(
-                          colors: [
-                            const Color(0xFF0D2B52).withValues(alpha: 0.8),
-                            const Color(0xFF081D38).withValues(alpha: 0.8),
-                          ],
-                        ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFF80E5FF)
-                        : const Color(0xFF1E5696).withValues(alpha: 0.4),
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                      color: isSelected ? Colors.white : Colors.white70,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 
   /// Individual Level Tile
