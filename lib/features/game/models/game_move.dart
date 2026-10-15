@@ -6,13 +6,18 @@ class GameMove {
   final int toIndex;
   final int color;
   final int amount;
+  final Set<int> sourceHiddenBefore;
+  final Set<int> targetHiddenBefore;
 
-  const GameMove({
+  GameMove({
     required this.fromIndex,
     required this.toIndex,
     required this.color,
     required this.amount,
-  });
+    Set<int>? sourceHiddenBefore,
+    Set<int>? targetHiddenBefore,
+  })  : sourceHiddenBefore = sourceHiddenBefore != null ? Set<int>.from(sourceHiddenBefore) : <int>{},
+        targetHiddenBefore = targetHiddenBefore != null ? Set<int>.from(targetHiddenBefore) : <int>{};
 
   /// Reverts this move on the given list of bottles
   void undo(List<Bottle> bottles) {
@@ -28,8 +33,19 @@ class GameMove {
         sourceBottle.layers.add(c);
       }
     }
+
+    sourceBottle.hiddenIndices
+      ..clear()
+      ..addAll(sourceHiddenBefore);
+    targetBottle.hiddenIndices
+      ..clear()
+      ..addAll(targetHiddenBefore);
+
+    sourceBottle.checkAndRevealTop();
+    targetBottle.checkAndRevealTop();
   }
 
   @override
   String toString() => 'Move(from: $fromIndex, to: $toIndex, color: $color, amount: $amount)';
 }
+

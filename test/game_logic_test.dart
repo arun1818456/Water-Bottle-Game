@@ -105,4 +105,65 @@ void main() {
       expect(bottles[1].layers, equals([3, 2]));
     });
   });
+
+  group('Mystery / Blind Layers Logic', () {
+    test('Layer marked as hidden is hidden when covered and reveals when exposed', () {
+      final bottle = Bottle(
+        layers: [1, 2, 3],
+        hiddenIndices: {0},
+      );
+
+      // Initially top layer is index 2 (color 3).
+      // Index 0 (color 1) is hidden.
+      expect(bottle.isLayerHidden(0), isTrue);
+      expect(bottle.isLayerHidden(2), isFalse);
+
+      final target1 = Bottle();
+      final target2 = Bottle();
+
+      // Pour out top layer 3 into target1
+      bottle.pourInto(target1);
+      expect(bottle.layers, equals([1, 2]));
+      expect(bottle.isLayerHidden(0), isTrue);
+
+      // Pour out layer 2 into target2
+      bottle.pourInto(target2);
+      expect(bottle.layers, equals([1]));
+      // Now index 0 is at the top (index == length - 1), so it auto-reveals!
+      expect(bottle.isLayerHidden(0), isFalse);
+      expect(bottle.hiddenIndices.contains(0), isFalse);
+    });
+
+    test('Undo properly restores hidden layer state', () {
+      final bottle0 = Bottle(
+        layers: [1, 2],
+        hiddenIndices: {0},
+      );
+      final bottle1 = Bottle();
+
+      final sourceHiddenBefore = Set<int>.from(bottle0.hiddenIndices);
+      final targetHiddenBefore = Set<int>.from(bottle1.hiddenIndices);
+
+      // Pour layer 2 from bottle 0 into bottle 1
+      final move = GameMove(
+        fromIndex: 0,
+        toIndex: 1,
+        color: 2,
+        amount: 1,
+        sourceHiddenBefore: sourceHiddenBefore,
+        targetHiddenBefore: targetHiddenBefore,
+      );
+
+      bottle0.pourInto(bottle1);
+      // Layer 1 exposed and revealed
+      expect(bottle0.isLayerHidden(0), isFalse);
+
+      // Undo move
+      move.undo(bottle0.layers.isEmpty ? [bottle0, bottle1] : [bottle0, bottle1]);
+      expect(bottle0.layers, equals([1, 2]));
+      // Index 0 should be hidden again
+      expect(bottle0.isLayerHidden(0), isTrue);
+    });
+  });
 }
+

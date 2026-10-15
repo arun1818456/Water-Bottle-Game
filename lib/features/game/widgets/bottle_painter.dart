@@ -146,6 +146,7 @@ class BottlePainter extends CustomPainter {
           colorId: effectiveLayers[i],
           bottomVol: segBottom,
           topVol: segTop,
+          layerIndex: i,
         ));
       }
       accumulated += 1.0;
@@ -159,6 +160,7 @@ class BottlePainter extends CustomPainter {
         colorId: fillColor!,
         bottomVol: fillBottom,
         topVol: fillTop,
+        layerIndex: effectiveLayers.length,
       ));
     }
 
@@ -177,7 +179,7 @@ class BottlePainter extends CustomPainter {
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
       final isTopMost = (i == segments.length - 1);
-      final palette = AppColors.getLiquidPalette(seg.colorId);
+      final isHidden = bottle.isLayerHidden(seg.layerIndex);
 
       final bottomFrac = seg.bottomVol / bottle.capacity;
       final topFrac = seg.topVol / bottle.capacity;
@@ -218,35 +220,119 @@ class BottlePainter extends CustomPainter {
       final minY = min(pTopLeft.dy, pTopRight.dy);
       final maxY = max(pBottomLeft.dy, pBottomRight.dy).clamp(minY + 10, totalHeight + 10);
 
-      final liquidPaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            palette.highlight,
-            palette.base,
-            palette.shadow,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ).createShader(Rect.fromLTRB(0, minY, size.width, maxY));
+      if (isHidden) {
+        // Semi-transparent glassy frosted translucent liquid layer
+        final mysteryPaint = Paint()
+          ..shader = LinearGradient(
+            colors: [
+              const Color(0x994F46E5), // Translucent Indigo
+              const Color(0x7706B6D4), // Translucent Cyan
+              const Color(0x997C3AED), // Translucent Purple
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(Rect.fromLTRB(0, minY, size.width, maxY));
 
-      canvas.drawPath(layerPath, liquidPaint);
+        canvas.drawPath(layerPath, mysteryPaint);
 
-      // Add subtle glossy shine streak down along the fluid
-      final shinePaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.white.withAlpha(70),
-            Colors.white.withAlpha(0),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ).createShader(Rect.fromLTWH(4, minY, size.width * 0.3, segmentHeight));
+        // Draw sparkling star glints inside the mystery layer
+        final centerY = (minY + maxY) / 2;
+        final pulse1 = (sin(wavePhase + seg.layerIndex * 1.5) + 1.0) / 2.0;
+        final pulse2 = (cos(wavePhase * 1.3 + seg.layerIndex) + 1.0) / 2.0;
 
-      canvas.drawRect(
-        Rect.fromLTWH(4, minY, size.width * 0.25, maxY - minY),
-        shinePaint,
-      );
+        _drawStarGlint(
+          canvas,
+          Offset(size.width * 0.22, centerY - 2 + sin(wavePhase) * 2),
+          3.0 + pulse1 * 2.0,
+          Colors.cyanAccent.withAlpha((140 + pulse1 * 115).toInt()),
+        );
+
+        _drawStarGlint(
+          canvas,
+          Offset(size.width * 0.78, centerY + 3 - cos(wavePhase) * 2),
+          2.5 + pulse2 * 2.0,
+          Colors.purpleAccent.withAlpha((140 + pulse2 * 115).toInt()),
+        );
+
+        _drawStarGlint(
+          canvas,
+          Offset(size.width * 0.5, minY + 5),
+          2.0 + pulse1 * 1.5,
+          Colors.white.withAlpha((160 + pulse1 * 95).toInt()),
+        );
+
+        // Draw glowing question mark '?' in center of mystery layer segment
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: max(14.0, (maxY - minY) * 0.58),
+              fontWeight: FontWeight.w900,
+              shadows: [
+                const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+                Shadow(color: const Color(0xFF00E5FF), blurRadius: 10 + pulse1 * 6),
+                Shadow(color: const Color(0xFFD500F9), blurRadius: 14 + pulse2 * 6),
+              ],
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        tp.paint(canvas, Offset((size.width - tp.width) / 2, centerY - (tp.height / 2)));
+      } else {
+        final palette = AppColors.getLiquidPalette(seg.colorId);
+        final liquidPaint = Paint()
+          ..shader = LinearGradient(
+            colors: [
+              palette.highlight,
+              palette.base,
+              palette.shadow,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(Rect.fromLTRB(0, minY, size.width, maxY));
+
+        canvas.drawPath(layerPath, liquidPaint);
+
+        // Add subtle glossy shine streak down along the fluid
+        final shinePaint = Paint()
+          ..shader = LinearGradient(
+            colors: [
+              Colors.white.withAlpha(70),
+              Colors.white.withAlpha(0),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ).createShader(Rect.fromLTWH(4, minY, size.width * 0.3, segmentHeight));
+
+        canvas.drawRect(
+          Rect.fromLTWH(4, minY, size.width * 0.25, maxY - minY),
+          shinePaint,
+        );
+      }
     }
+  }
+
+  void _drawStarGlint(Canvas canvas, Offset center, double radius, Color color) {
+    if (radius <= 0) return;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(center.dx, center.dy - radius);
+    path.quadraticBezierTo(center.dx, center.dy, center.dx + radius, center.dy);
+    path.quadraticBezierTo(center.dx, center.dy, center.dx, center.dy + radius);
+    path.quadraticBezierTo(center.dx, center.dy, center.dx - radius, center.dy);
+    path.quadraticBezierTo(center.dx, center.dy, center.dx, center.dy - radius);
+
+    canvas.drawPath(path, paint);
+
+    final glowPaint = Paint()
+      ..color = Colors.white.withAlpha((color.a * 0.9).toInt().clamp(0, 255))
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+    canvas.drawCircle(center, max(0.8, radius * 0.35), glowPaint);
   }
 
   void _drawSkinOverlays(Canvas canvas, Size size) {
@@ -379,10 +465,13 @@ class _LiquidSegment {
   final int colorId;
   final double bottomVol;
   final double topVol;
+  final int layerIndex;
 
   _LiquidSegment({
     required this.colorId,
     required this.bottomVol,
     required this.topVol,
+    required this.layerIndex,
   });
 }
+

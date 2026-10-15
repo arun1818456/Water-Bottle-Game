@@ -9,6 +9,7 @@ class LevelData {
   final int bottleCount;
   final int emptyBottles;
   final List<List<int>> bottles;
+  final List<Set<int>>? hiddenLayers;
 
   LevelData({
     required this.id,
@@ -16,11 +17,67 @@ class LevelData {
     required this.bottleCount,
     required this.emptyBottles,
     required this.bottles,
+    this.hiddenLayers,
   });
 
   factory LevelData.fromJson(Map<String, dynamic> json) {
     final rawBottles = json['bottles'] as List;
-    final parsedBottles = rawBottles.map((b) => List<int>.from(b as List)).toList();
+    final parsedBottles = <List<int>>[];
+    final parsedHidden = <Set<int>>[];
+
+    for (var b in rawBottles) {
+      if (b is Map<String, dynamic>) {
+        parsedBottles.add(List<int>.from(b['layers'] as List));
+        if (b.containsKey('hidden')) {
+          parsedHidden.add(Set<int>.from((b['hidden'] as List).cast<int>()));
+        } else {
+          parsedHidden.add(<int>{});
+        }
+      } else if (b is List) {
+        parsedBottles.add(List<int>.from(b));
+        parsedHidden.add(<int>{});
+      }
+    }
+
+    // Auto-enrich levels with mystery layers if not explicitly defined
+    if (!parsedHidden.any((s) => s.isNotEmpty)) {
+      final levelId = json['id'] as int? ?? 1;
+      final diff = json['difficulty'] as String? ?? 'Custom';
+      final isHard = diff == 'Hard' ||
+          diff == 'Expert' ||
+          diff == 'Very Hard' ||
+          diff == 'Master+' ||
+          diff == 'Grandmaster' ||
+          diff == 'Aqua Legend';
+
+      // Show mystery layers on ALL hard levels, and periodically on medium/easy levels >= 5
+      final isPeriodic = levelId >= 5 && (levelId % 2 == 0 || levelId % 3 == 0);
+
+      if (isHard || isPeriodic) {
+        final rand = Random(levelId * 7919);
+        final eligibleIndices = <int>[];
+        for (var i = 0; i < parsedBottles.length; i++) {
+          if (parsedBottles[i].length >= 3) {
+            eligibleIndices.add(i);
+          }
+        }
+
+        if (eligibleIndices.isNotEmpty) {
+          eligibleIndices.shuffle(rand);
+          final countToHide = isHard
+              ? min(eligibleIndices.length, 3)
+              : min(eligibleIndices.length, 2);
+
+          for (var k = 0; k < countToHide; k++) {
+            final idx = eligibleIndices[k];
+            parsedHidden[idx].add(0); // Hide bottom layer
+            if (parsedBottles[idx].length >= 4 && (isHard || k == 0 || levelId % 4 == 0)) {
+              parsedHidden[idx].add(1); // Hide second layer
+            }
+          }
+        }
+      }
+    }
 
     return LevelData(
       id: json['id'] as int,
@@ -29,6 +86,7 @@ class LevelData {
       emptyBottles: json['emptyBottles'] as int? ??
           parsedBottles.where((b) => b.isEmpty).length,
       bottles: parsedBottles,
+      hiddenLayers: parsedHidden.any((s) => s.isNotEmpty) ? parsedHidden : null,
     );
   }
 
@@ -37,7 +95,15 @@ class LevelData {
         'difficulty': difficulty,
         'bottleCount': bottleCount,
         'emptyBottles': emptyBottles,
-        'bottles': bottles,
+        'bottles': List.generate(bottles.length, (i) {
+          final hidden = (hiddenLayers != null && i < hiddenLayers!.length)
+              ? hiddenLayers![i].toList()
+              : <int>[];
+          if (hidden.isNotEmpty) {
+            return {'layers': bottles[i], 'hidden': hidden};
+          }
+          return bottles[i];
+        }),
       };
 }
 
@@ -99,12 +165,14 @@ class ProceduralLevelGenerator {
       // Verify immediate moves exist
       final bottleModels = bottles.map((b) => Bottle(layers: List<int>.from(b))).toList();
       if (WaterSortSolver.hasAnyValidMove(bottleModels)) {
+        final hidden = _generateMysteryLayers(levelId, bottles, rand);
         return LevelData(
           id: levelId,
           difficulty: _getDifficultyTitle(levelId),
           bottleCount: bottles.length,
           emptyBottles: emptyBottles,
           bottles: bottles,
+          hiddenLayers: hidden,
         );
       }
     }
@@ -113,9 +181,37 @@ class ProceduralLevelGenerator {
     return _generateReverseSolvable(levelId, colorCount, emptyBottles);
   }
 
+  static List<Set<int>>? _generateMysteryLayers(
+    int levelId,
+    List<List<int>> bottles,
+    Random rand,
+  ) {
+    if (levelId < 8) return null;
+    final hiddenLayers = List.generate(bottles.length, (_) => <int>{});
+    final eligibleIndices = <int>[];
+
+    for (var i = 0; i < bottles.length; i++) {
+      if (bottles[i].length >= 3) {
+        eligibleIndices.add(i);
+      }
+    }
+
+    if (eligibleIndices.isNotEmpty) {
+      eligibleIndices.shuffle(rand);
+      final countToHide = min(eligibleIndices.length, levelId >= 20 ? 3 : 2);
+      for (var k = 0; k < countToHide; k++) {
+        final idx = eligibleIndices[k];
+        hiddenLayers[idx].add(0); // Hide bottom layer
+        if (bottles[idx].length >= 4 && (k % 2 == 0 || levelId >= 25)) {
+          hiddenLayers[idx].add(1); // Hide second layer too for added thrill
+        }
+      }
+    }
+
+    return hiddenLayers.any((s) => s.isNotEmpty) ? hiddenLayers : null;
+  }
+
   static LevelData _generateReverseSolvable(int levelId, int colorCount, int emptyBottles) {
-    // Strong hash of level to ensure the same level ID always gives the same configuration,
-    // but the configuration looks highly randomized
     final rand = Random(levelId.hashCode ^ 87654321);
     
     final bottles = List.generate(
@@ -126,7 +222,6 @@ class ProceduralLevelGenerator {
       bottles.add(<int>[]);
     }
 
-    // High number of reverse steps to thoroughly scramble the bottles
     final steps = 150 + min(200, levelId * 2);
     
     for (var s = 0; s < steps; s++) {
@@ -140,7 +235,6 @@ class ProceduralLevelGenerator {
       final targets = <int>[];
       for (var j = 0; j < bottles.length; j++) {
         if (j != from && bottles[j].length < 4) {
-          // Prevent trivial loop of taking a color and putting it straight back
           targets.add(j);
         }
       }
@@ -150,8 +244,6 @@ class ProceduralLevelGenerator {
       bottles[to].add(bottles[from].removeLast());
     }
     
-    // Additional color ID shuffle so colors aren't always 1,2,3... 
-    // This makes the same "structure" look different
     final colors = List.generate(colorCount, (i) => i + 1);
     colors.shuffle(rand);
     final colorMap = <int, int>{};
@@ -165,8 +257,9 @@ class ProceduralLevelGenerator {
       }
     }
     
-    // Shuffle the physical order of the bottles on the board so it doesn't look samey
     bottles.shuffle(rand);
+
+    final hidden = _generateMysteryLayers(levelId, bottles, rand);
 
     return LevelData(
       id: levelId,
@@ -174,6 +267,7 @@ class ProceduralLevelGenerator {
       bottleCount: bottles.length,
       emptyBottles: bottles.where((b) => b.isEmpty).length,
       bottles: bottles,
+      hiddenLayers: hidden,
     );
   }
 
@@ -183,3 +277,4 @@ class ProceduralLevelGenerator {
     return 'Aqua Legend';
   }
 }
+

@@ -130,9 +130,16 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     }
 
     // Convert to bottle models
-    final loadedBottles = _originalLevelData.bottles
-        .map((layers) => Bottle(layers: List<int>.from(layers)))
-        .toList();
+    final loadedBottles = <Bottle>[];
+    for (var i = 0; i < _originalLevelData.bottles.length; i++) {
+      final layers = _originalLevelData.bottles[i];
+      final hidden = (_originalLevelData.hiddenLayers != null && i < _originalLevelData.hiddenLayers!.length)
+          ? Set<int>.from(_originalLevelData.hiddenLayers![i])
+          : <int>{};
+      final bottle = Bottle(layers: List<int>.from(layers), hiddenIndices: hidden);
+      bottle.checkAndRevealTop();
+      loadedBottles.add(bottle);
+    }
 
     bottles.assignAll(loadedBottles);
     StorageService.to.setCurrentLevel(id);
@@ -214,6 +221,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     final colorToPour = source.topColor!;
     final amountToPour = source.calculatePourAmount(target);
 
+    final sourceHiddenBefore = Set<int>.from(source.hiddenIndices);
+    final targetHiddenBefore = Set<int>.from(target.hiddenIndices);
+
     // Calculate source and target coordinates for stream
     _calculateStreamCoordinates(fromIdx, toIdx);
     streamColor.value = colorToPour;
@@ -260,6 +270,13 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     // Commit liquid transfer to bottle models
     source.pourInto(target);
+    final sourceRevealed = source.checkAndRevealTop();
+    final targetRevealed = target.checkAndRevealTop();
+    if (sourceRevealed || targetRevealed) {
+      AudioService.to.playBottleTapSound();
+      HapticFeedbackHelper.mediumImpact();
+    }
+
     bottles.refresh();
 
     // Record move in history
@@ -268,6 +285,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       toIndex: toIdx,
       color: colorToPour,
       amount: amountToPour,
+      sourceHiddenBefore: sourceHiddenBefore,
+      targetHiddenBefore: targetHiddenBefore,
     ));
     moveCount.value++;
 

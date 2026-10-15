@@ -460,11 +460,12 @@ class GameView extends StatelessWidget {
       case 10: return [3, 4, 3];
       case 11: return [4, 3, 4];
       case 12: return [4, 4, 4];
-      case 13: return [4, 5, 4];
-      case 14: return [5, 4, 5];
-      case 15: return [5, 5, 5];
+      case 13: return [4, 3, 3, 3];
+      case 14: return [4, 4, 3, 3];
+      case 15: return [4, 4, 4, 3];
+      case 16: return [4, 4, 4, 4];
       default:
-        int rows = (count / 5).ceil();
+        int rows = (count / 4).ceil();
         int base = count ~/ rows;
         int remainder = count % rows;
         return List.generate(rows, (i) => base + (i < remainder ? 1 : 0));
