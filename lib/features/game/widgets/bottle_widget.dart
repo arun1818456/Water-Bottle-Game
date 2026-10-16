@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../../../core/services/storage_service.dart';
 import '../../../core/utils/haptic_feedback_helper.dart';
 import '../models/bottle.dart';
 import 'bottle_completion_effects.dart';
@@ -20,6 +19,7 @@ class BottleWidget extends StatefulWidget {
   final double drainAmount;
   final double fillAmount;
   final int? fillColor;
+  final bool isColorblindMode;
   final VoidCallback onTap;
 
   const BottleWidget({
@@ -36,6 +36,7 @@ class BottleWidget extends StatefulWidget {
     this.drainAmount = 0.0,
     this.fillAmount = 0.0,
     this.fillColor,
+    this.isColorblindMode = false,
   });
 
   @override
@@ -203,7 +204,7 @@ class _BottleWidgetState extends State<BottleWidget>
                             drainAmount: widget.drainAmount,
                             fillAmount: widget.fillAmount,
                             fillColor: widget.fillColor,
-                            isColorblindMode: StorageService.to.colorblindMode.value,
+                            isColorblindMode: widget.isColorblindMode,
                           ),
                         ),
                       ),

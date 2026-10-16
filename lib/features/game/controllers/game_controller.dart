@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/app_constants.dart';
@@ -53,6 +54,11 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   final RxBool isGameWon = false.obs;
   final RxBool showCelebration = false.obs;
   final RxBool showDifficultySplash = false.obs;
+  final RxBool isColorblindMode = false.obs;
+
+  void toggleColorblindMode() {
+    isColorblindMode.value = !isColorblindMode.value;
+  }
 
   // 0 = choose the filled bottle, 1 = choose the empty bottle.
   final RxInt tutorialStep = 0.obs;
@@ -388,11 +394,32 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     final totalEarned = AppConstants.coinsPerLevelClear + starBonus;
 
+    int actualCoinsEarned = 0;
+
     if (isTutorial) {
       await StorageService.to.completeTutorial();
     } else {
+      final existingStars = StorageService.to.getStarsForLevel(levelId.value);
+      final isFirstCompletion = existingStars == 0;
+
+      if (isFirstCompletion) {
+        // First completion: full rewards (base clear coins + star bonus)
+        actualCoinsEarned = totalEarned;
+      } else if (stars > existingStars) {
+        // Replayed level with improved star score: award star upgrade difference
+        final oldStarBonus = (existingStars == 2)
+            ? AppConstants.coinsFor2Stars
+            : (existingStars == 1 ? AppConstants.coinsFor1Star : 0);
+        actualCoinsEarned = max(0, starBonus - oldStarBonus);
+      } else {
+        // Replayed already completed level with no star improvement: 0 coins
+        actualCoinsEarned = 0;
+      }
+
       await StorageService.to.completeLevel(levelId.value, stars);
-      await StorageService.to.addCoins(totalEarned);
+      if (actualCoinsEarned > 0) {
+        await StorageService.to.addCoins(actualCoinsEarned);
+      }
     }
 
     // Show Interstitial ad if eligible (every 4 levels)
@@ -403,7 +430,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         VictoryDialog(
           levelId: levelId.value,
           stars: stars,
-          baseCoins: totalEarned,
+          baseCoins: actualCoinsEarned,
           onNextLevel: () => nextLevel(),
           onRestart: () => restartLevel(),
           onHome: () => isTutorial ? Get.offAllNamed('/home') : Get.back(),

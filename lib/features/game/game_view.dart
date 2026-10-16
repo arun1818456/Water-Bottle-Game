@@ -270,7 +270,6 @@ class GameView extends StatelessWidget {
     int currentLevel,
     String difficultyText,
   ) {
-    final storage = StorageService.to;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -446,30 +445,30 @@ class GameView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    // Colorblind Mode Toggle Button (Right under Pause button)
+                    // Colorblind Mode Toggle Button (In-memory toggle)
                     GestureDetector(
-                      onTap: () async {
+                      onTap: () {
                         AudioService.to.playButtonClick();
-                        await storage.toggleColorblindMode();
                         HapticFeedbackHelper.selectionClick();
+                        controller.toggleColorblindMode();
                       },
                       child: Container(
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: storage.colorblindMode.value
+                          color: controller.isColorblindMode.value
                               ? const Color(0xFF00E5FF).withValues(alpha: 0.25)
                               : const Color(0xFF0E2A52).withValues(alpha: 0.8),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: storage.colorblindMode.value
+                            color: controller.isColorblindMode.value
                                 ? const Color(0xFF00E5FF)
                                 : const Color(0xFF1E60A8),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: storage.colorblindMode.value
+                              color: controller.isColorblindMode.value
                                   ? const Color(0xFF00E5FF).withValues(alpha: 0.4)
                                   : const Color(0xFF00E5FF).withValues(alpha: 0.15),
                               blurRadius: 8,
@@ -477,10 +476,10 @@ class GameView extends StatelessWidget {
                           ],
                         ),
                         child: Icon(
-                          storage.colorblindMode.value
+                          controller.isColorblindMode.value
                               ? Icons.visibility_rounded
                               : Icons.visibility_off_rounded,
-                          color: storage.colorblindMode.value
+                          color: controller.isColorblindMode.value
                               ? const Color(0xFF00E5FF)
                               : Colors.white70,
                           size: 17,
@@ -602,6 +601,7 @@ class GameView extends StatelessWidget {
       drainAmount: drainAmount,
       fillAmount: fillAmount,
       fillColor: fillColor,
+      isColorblindMode: controller.isColorblindMode.value,
       onTap: () => controller.onBottleTapped(index),
     );
   }

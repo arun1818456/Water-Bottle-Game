@@ -163,8 +163,8 @@ class _VictoryDialogState extends State<VictoryDialog> {
 
             const SizedBox(height: 20),
 
-            // Double Coins Button
-            if (!_doubleCoinsClaimed)
+            // Double Coins Button (only shown if coins were earned)
+            if (!_doubleCoinsClaimed && widget.baseCoins > 0)
               GestureDetector(
                 onTap: _onDoubleCoinsPressed,
                 child: Container(
