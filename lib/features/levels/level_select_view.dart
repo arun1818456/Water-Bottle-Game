@@ -44,7 +44,6 @@ class LevelSelectView extends StatelessWidget {
             child: Obx(() {
               final coins = controller.storage.coins.value;
               final unlockedLevel = controller.storage.unlockedLevel.value;
-              final selectedTab = controller.selectedTab.value;
               final levelIds = controller.filteredLevelIds;
 
               // Calculate total stars collected

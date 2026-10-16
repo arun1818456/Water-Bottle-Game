@@ -97,8 +97,6 @@ class BottleCompletionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
 
     // 1. Draw Sparkle Explosion Burst (behind or around bottle)
     if (burstProgress > 0.0 && burstProgress < 1.0) {

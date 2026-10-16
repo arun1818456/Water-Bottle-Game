@@ -781,6 +781,11 @@ class GameView extends StatelessWidget {
   /// Tutorial Guidance View
   Widget _buildTutorialGuide(GameController controller) {
     return Obx(() {
+      // Hide hand finger icon and guidance overlay during pour animation
+      if (controller.isPouring.value) {
+        return const SizedBox.shrink();
+      }
+
       final chooseTarget = controller.tutorialStep.value == 1;
       final message = chooseTarget
           ? 'Great! Now tap the bottle with matching color.'

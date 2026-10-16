@@ -31,13 +31,20 @@ class BottlePainter extends CustomPainter {
     this.isColorblindMode = false,
   });
 
+  // Bottle icon/symbol is visible when upright (including when lifted/selected), and hidden only during active pouring/tilting
+  bool get isBottleStable =>
+      tiltAngle == 0.0 && drainAmount == 0.0 && fillAmount == 0.0;
+
+  bool get isPouringThisBottle =>
+      tiltAngle != 0.0 || drainAmount > 0.0 || fillAmount > 0.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // Draw Hint Glow or Selection Glow behind bottle
-    if (isHintSource || isHintTarget || isSelected) {
+    // Draw Hint Glow or Selection Glow behind bottle (hidden while pouring)
+    if ((isHintSource || isHintTarget || isSelected) && !isPouringThisBottle) {
       final glowPaint = Paint()
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
 
@@ -263,25 +270,27 @@ class BottlePainter extends CustomPainter {
           Colors.white.withAlpha((160 + pulse1 * 95).toInt()),
         );
 
-        // Draw glowing question mark '?' in center of mystery layer segment
-        final tp = TextPainter(
-          text: TextSpan(
-            text: '?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: max(14.0, (maxY - minY) * 0.58),
-              fontWeight: FontWeight.w900,
-              shadows: [
-                const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
-                Shadow(color: const Color(0xFF00E5FF), blurRadius: 10 + pulse1 * 6),
-                Shadow(color: const Color(0xFFD500F9), blurRadius: 14 + pulse2 * 6),
-              ],
+        // Draw glowing question mark '?' in center of mystery layer segment (only when bottle is stable)
+        if (isBottleStable) {
+          final tp = TextPainter(
+            text: TextSpan(
+              text: '?',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: max(14.0, (maxY - minY) * 0.58),
+                fontWeight: FontWeight.w900,
+                shadows: [
+                  const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+                  Shadow(color: const Color(0xFF00E5FF), blurRadius: 10 + pulse1 * 6),
+                  Shadow(color: const Color(0xFFD500F9), blurRadius: 14 + pulse2 * 6),
+                ],
+              ),
             ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
+            textDirection: TextDirection.ltr,
+          )..layout();
 
-        tp.paint(canvas, Offset((size.width - tp.width) / 2, centerY - (tp.height / 2)));
+          tp.paint(canvas, Offset((size.width - tp.width) / 2, centerY - (tp.height / 2)));
+        }
       } else {
         final palette = AppColors.getLiquidPalette(seg.colorId);
         final liquidPaint = Paint()
@@ -313,8 +322,8 @@ class BottlePainter extends CustomPainter {
           shinePaint,
         );
 
-        // Draw distinct symbol for Colorblind Mode
-        if (isColorblindMode) {
+        // Draw distinct symbol for Colorblind Mode (only when bottle is stable)
+        if (isColorblindMode && isBottleStable) {
           final symbol = AppColors.getColorblindSymbol(seg.colorId);
           final tp = TextPainter(
             text: TextSpan(
