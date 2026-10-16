@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/utils/haptic_feedback_helper.dart';
 import '../models/bottle.dart';
 import 'bottle_completion_effects.dart';
@@ -202,6 +203,7 @@ class _BottleWidgetState extends State<BottleWidget>
                             drainAmount: widget.drainAmount,
                             fillAmount: widget.fillAmount,
                             fillColor: widget.fillColor,
+                            isColorblindMode: StorageService.to.colorblindMode.value,
                           ),
                         ),
                       ),

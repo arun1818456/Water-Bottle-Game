@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/utils/haptic_feedback_helper.dart';
 import 'controllers/game_controller.dart';
 import 'widgets/bottle_widget.dart';
 import 'widgets/celebration_overlay.dart';
@@ -268,6 +270,7 @@ class GameView extends StatelessWidget {
     int currentLevel,
     String difficultyText,
   ) {
+    final storage = StorageService.to;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -412,31 +415,79 @@ class GameView extends StatelessWidget {
               ),
               if (!isTutorial) ...[
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => controller.openPauseMenu(),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0E2A52).withValues(alpha: 0.8),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF1E60A8),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                          blurRadius: 10,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Pause Button
+                    GestureDetector(
+                      onTap: () => controller.openPauseMenu(),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0E2A52).withValues(alpha: 0.8),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF1E60A8),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                              blurRadius: 10,
+                            ),
+                          ],
                         ),
-                      ],
+                        child: const Icon(
+                          Icons.pause_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.pause_rounded,
-                      color: Colors.white,
-                      size: 20,
+                    const SizedBox(width: 6),
+                    // Colorblind Mode Toggle Button (Right under Pause button)
+                    GestureDetector(
+                      onTap: () async {
+                        AudioService.to.playButtonClick();
+                        await storage.toggleColorblindMode();
+                        HapticFeedbackHelper.selectionClick();
+                      },
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: storage.colorblindMode.value
+                              ? const Color(0xFF00E5FF).withValues(alpha: 0.25)
+                              : const Color(0xFF0E2A52).withValues(alpha: 0.8),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: storage.colorblindMode.value
+                                ? const Color(0xFF00E5FF)
+                                : const Color(0xFF1E60A8),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: storage.colorblindMode.value
+                                  ? const Color(0xFF00E5FF).withValues(alpha: 0.4)
+                                  : const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          storage.colorblindMode.value
+                              ? Icons.visibility_rounded
+                              : Icons.visibility_off_rounded,
+                          color: storage.colorblindMode.value
+                              ? const Color(0xFF00E5FF)
+                              : Colors.white70,
+                          size: 17,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ],

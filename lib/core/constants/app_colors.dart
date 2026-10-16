@@ -152,6 +152,29 @@ class AppColors {
     }
     return liquidPalettes[colorId - 1];
   }
+
+  /// Returns a clean, distinct symbol for Colorblind Mode
+  static String getColorblindSymbol(int colorId) {
+    switch (colorId) {
+      case 1:  return '●'; // Circle (Ocean Blue)
+      case 2:  return '★'; // Star (Vibrant Orange)
+      case 3:  return '◆'; // Diamond (Ruby Red)
+      case 4:  return '♥'; // Heart (Emerald Green)
+      case 5:  return '■'; // Square (Royal Purple)
+      case 6:  return '▲'; // Triangle (Sunshine Yellow)
+      case 7:  return '⬢'; // Hexagon (Electric Pink)
+      case 8:  return '✚'; // Cross (Aqua Teal)
+      case 9:  return '☾'; // Crescent (Deep Navy)
+      case 10: return '✦'; // Sparkle (Lime Spark)
+      case 11: return '✿'; // Flower (Amber Gold)
+      case 12: return '💧'; // Water Drop (Violet Dream)
+      case 13: return '❄'; // Snowflake (Cyan Frost)
+      case 14: return '➴'; // Diamond (Coral Glow)
+      case 15: return '♣'; // Clover (Mint Breeze)
+      case 16: return '♠'; // Spade (Hot Magenta)
+      default: return '●';
+    }
+  }
 }
 
 class LiquidPalette {

@@ -27,6 +27,7 @@ class StorageService extends GetxService {
   static const String _keySound = 'asm_sound_enabled';
   static const String _keyMusic = 'asm_music_enabled';
   static const String _keyVibration = 'asm_vibration_enabled';
+  static const String _keyColorblindMode = 'asm_colorblind_mode';
 
   static const String _keyDailyLastClaim = 'asm_daily_last_claim';
   static const String _keyDailyStreak = 'asm_daily_streak';
@@ -47,6 +48,7 @@ class StorageService extends GetxService {
   final RxBool soundEnabled = true.obs;
   final RxBool musicEnabled = true.obs;
   final RxBool vibrationEnabled = true.obs;
+  final RxBool colorblindMode = false.obs;
 
   final RxInt dailyStreak = 0.obs;
   final RxString lastDailyClaimDate = ''.obs;
@@ -93,14 +95,20 @@ class StorageService extends GetxService {
     }
     equippedBackground.value = _prefs.getString(_keyEquippedBackground) ?? 'ocean';
 
-    // Load audio & vibration settings
+    // Load audio, vibration & accessibility settings
     soundEnabled.value = _prefs.getBool(_keySound) ?? true;
     musicEnabled.value = _prefs.getBool(_keyMusic) ?? true;
     vibrationEnabled.value = _prefs.getBool(_keyVibration) ?? true;
+    colorblindMode.value = _prefs.getBool(_keyColorblindMode) ?? false;
 
     // Load daily reward & streak
     dailyStreak.value = _prefs.getInt(_keyDailyStreak) ?? 0;
     lastDailyClaimDate.value = _prefs.getString(_keyDailyLastClaim) ?? '';
+  }
+
+  Future<void> toggleColorblindMode() async {
+    colorblindMode.value = !colorblindMode.value;
+    await _prefs.setBool(_keyColorblindMode, colorblindMode.value);
   }
 
   // --- Economy Methods ---
