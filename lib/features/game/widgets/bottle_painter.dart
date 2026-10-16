@@ -237,55 +237,51 @@ class BottlePainter extends CustomPainter {
 
         canvas.drawPath(layerPath, mysteryPaint);
 
-        // Hide '?' symbol and glints while bottle is actively pouring/tilting
-        final isPouringActive = (tiltAngle != 0.0 || drainAmount > 0.0 || fillAmount > 0.0);
-        if (!isPouringActive) {
-          // Draw sparkling star glints inside the mystery layer
-          final centerY = (minY + maxY) / 2;
-          final pulse1 = (sin(wavePhase + seg.layerIndex * 1.5) + 1.0) / 2.0;
-          final pulse2 = (cos(wavePhase * 1.3 + seg.layerIndex) + 1.0) / 2.0;
+        // Draw sparkling star glints inside the mystery layer
+        final centerY = (minY + maxY) / 2;
+        final pulse1 = (sin(wavePhase + seg.layerIndex * 1.5) + 1.0) / 2.0;
+        final pulse2 = (cos(wavePhase * 1.3 + seg.layerIndex) + 1.0) / 2.0;
 
-          _drawStarGlint(
-            canvas,
-            Offset(size.width * 0.22, centerY - 2 + sin(wavePhase) * 2),
-            3.0 + pulse1 * 2.0,
-            Colors.cyanAccent.withAlpha((140 + pulse1 * 115).toInt()),
-          );
+        _drawStarGlint(
+          canvas,
+          Offset(size.width * 0.22, centerY - 2 + sin(wavePhase) * 2),
+          3.0 + pulse1 * 2.0,
+          Colors.cyanAccent.withAlpha((140 + pulse1 * 115).toInt()),
+        );
 
-          _drawStarGlint(
-            canvas,
-            Offset(size.width * 0.78, centerY + 3 - cos(wavePhase) * 2),
-            2.5 + pulse2 * 2.0,
-            Colors.purpleAccent.withAlpha((140 + pulse2 * 115).toInt()),
-          );
+        _drawStarGlint(
+          canvas,
+          Offset(size.width * 0.78, centerY + 3 - cos(wavePhase) * 2),
+          2.5 + pulse2 * 2.0,
+          Colors.purpleAccent.withAlpha((140 + pulse2 * 115).toInt()),
+        );
 
-          _drawStarGlint(
-            canvas,
-            Offset(size.width * 0.5, minY + 5),
-            2.0 + pulse1 * 1.5,
-            Colors.white.withAlpha((160 + pulse1 * 95).toInt()),
-          );
+        _drawStarGlint(
+          canvas,
+          Offset(size.width * 0.5, minY + 5),
+          2.0 + pulse1 * 1.5,
+          Colors.white.withAlpha((160 + pulse1 * 95).toInt()),
+        );
 
-          // Draw glowing question mark '?' in center of mystery layer segment
-          final tp = TextPainter(
-            text: TextSpan(
-              text: '?',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: max(14.0, (maxY - minY) * 0.58),
-                fontWeight: FontWeight.w900,
-                shadows: [
-                  const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
-                  Shadow(color: const Color(0xFF00E5FF), blurRadius: 10 + pulse1 * 6),
-                  Shadow(color: const Color(0xFFD500F9), blurRadius: 14 + pulse2 * 6),
-                ],
-              ),
+        // Draw glowing question mark '?' in center of mystery layer segment
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: max(14.0, (maxY - minY) * 0.58),
+              fontWeight: FontWeight.w900,
+              shadows: [
+                const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+                Shadow(color: const Color(0xFF00E5FF), blurRadius: 10 + pulse1 * 6),
+                Shadow(color: const Color(0xFFD500F9), blurRadius: 14 + pulse2 * 6),
+              ],
             ),
-            textDirection: TextDirection.ltr,
-          )..layout();
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
 
-          tp.paint(canvas, Offset((size.width - tp.width) / 2, centerY - (tp.height / 2)));
-        }
+        tp.paint(canvas, Offset((size.width - tp.width) / 2, centerY - (tp.height / 2)));
       } else {
         final palette = AppColors.getLiquidPalette(seg.colorId);
         final liquidPaint = Paint()
@@ -317,9 +313,8 @@ class BottlePainter extends CustomPainter {
           shinePaint,
         );
 
-        // Draw distinct symbol for Colorblind Mode (hidden while bottle is actively pouring/tilting)
-        final isPouringActive = (tiltAngle != 0.0 || drainAmount > 0.0 || fillAmount > 0.0);
-        if (isColorblindMode && !isPouringActive) {
+        // Draw distinct symbol for Colorblind Mode
+        if (isColorblindMode) {
           final symbol = AppColors.getColorblindSymbol(seg.colorId);
           final tp = TextPainter(
             text: TextSpan(

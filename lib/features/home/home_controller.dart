@@ -34,6 +34,11 @@ class HomeController extends GetxController {
     Get.toNamed('/daily-reward');
   }
 
+  void onLeaderboardPressed() {
+    AudioService.to.playButtonClick();
+    Get.toNamed('/leaderboard');
+  }
+
   void onSettingsPressed() {
     AudioService.to.playButtonClick();
     Get.toNamed('/settings');

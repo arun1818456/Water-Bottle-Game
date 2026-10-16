@@ -20,88 +20,88 @@ class HomeView extends StatelessWidget {
         decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage(AppImages.backGround),
-            fit:  BoxFit.cover
-          )
+            fit: BoxFit.cover,
+          ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               // Top Bar: Coins & Streak
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 5),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // 🔥 Daily Streak Badge
-                    Obx(
-                          () => Container(
-                            padding:  EdgeInsets.symmetric(vertical: 3),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF14529B),
-                              Color(0xFF0B3B80),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                          border: Border.all(
-                            color: const Color(0xFF20D9FF),
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(40),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF00CFFF)
-                                  .withValues(alpha: 0.18),
-                              blurRadius: 10,
-                              spreadRadius: 1,
+                    // 🔥 Daily Streak Badge (Tapping opens Daily Reward screen)
+                    GestureDetector(
+                      onTap: controller.onDailyRewardPressed,
+                      child: Obx(
+                        () => Container(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF14529B), Color(0xFF0B3B80)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(width: 8),
-                            // Flame Circle
-                            Container(
-                              width: 25,
-                              height: 25,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF082D69),
-                                border: Border.all(
-                                  color: const Color(0xFF164F9C),
+                            border: Border.all(
+                              color: const Color(0xFF20D9FF),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(40),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF00CFFF,
+                                ).withValues(alpha: 0.18),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(width: 8),
+                              // Flame Circle
+                              Container(
+                                width: 25,
+                                height: 25,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF082D69),
+                                  border: Border.all(
+                                    color: const Color(0xFF164F9C),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.local_fire_department_rounded,
+                                  color: Color(0xFFFF5722),
+                                  size: 15,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.local_fire_department_rounded,
-                                color: Color(0xFFFF5722),
-                                size: 15,
+
+                              const SizedBox(width: 8),
+
+                              Text(
+                                '${storage.dailyStreak.value} Day Streak',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
 
-                            const SizedBox(width: 8),
+                              const SizedBox(width: 8),
 
-                            Text(
-                              '${storage.dailyStreak.value} Day Streak',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                              // Right Arrow
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: Color(0xFF38DFFF),
+                                size: 20,
                               ),
-                            ),
-
-                            const SizedBox(width: 8),
-
-                            // Right Arrow
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              color: Color(0xFF38DFFF),
-                              size: 20,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -117,10 +117,7 @@ class HomeView extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF14529B),
-                              Color(0xFF0B3B80),
-                            ],
+                            colors: [Color(0xFF14529B), Color(0xFF0B3B80)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ),
@@ -131,8 +128,9 @@ class HomeView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(40),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF00CFFF)
-                                  .withValues(alpha: 0.18),
+                              color: const Color(
+                                0xFF00CFFF,
+                              ).withValues(alpha: 0.18),
                               blurRadius: 10,
                               spreadRadius: 1,
                             ),
@@ -154,8 +152,9 @@ class HomeView extends StatelessWidget {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFFD700)
-                                        .withValues(alpha: 0.35),
+                                    color: const Color(
+                                      0xFFFFD700,
+                                    ).withValues(alpha: 0.35),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -212,49 +211,121 @@ class HomeView extends StatelessWidget {
                   ],
                 ),
               ),
-              
-
+              SizedBox(height: 5),
               // Game Hero Branding
-              Align(
-                alignment: Alignment.topLeft,
-                child: Container(
-                  margin: EdgeInsets.all(5),
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primaryCyan, AppColors.primaryBlue],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryCyan.withAlpha(120),
-                        blurRadius: 36,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child:
+                        Container(
+                              margin: EdgeInsets.all(5),
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppColors.primaryCyan,
+                                    AppColors.primaryBlue,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primaryCyan.withAlpha(120),
+                                    blurRadius: 36,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: const InteractiveWaterDrop(),
+                            )
+                            .animate(
+                              onPlay: Get.testMode
+                                  ? null
+                                  : (c) => c.repeat(reverse: true),
+                            )
+                            .moveY(
+                              begin: -6,
+                              end: 6,
+                              duration: 1800.ms,
+                              curve: Curves.easeInOut,
+                            ),
                   ),
-                  child: const InteractiveWaterDrop(),
-                )
-                    .animate(onPlay: Get.testMode ? null : (c) => c.repeat(reverse: true))
-                    .moveY(begin: -6, end: 6, duration: 1800.ms, curve: Curves.easeInOut),
+                  Spacer(),
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: GestureDetector(
+                      onTap: controller.onLeaderboardPressed,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8E24AA), Color(0xFF4A148C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: const Color(0xFFE040FB),
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFE040FB,
+                              ).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.emoji_events_rounded,
+                              color: Color(0xFFFFD700),
+                              size: 16,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Leaderboard',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Color(0xFFE040FB),
+                              size: 16,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const Spacer(flex: 6),
 
               // Play Button
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 55),
                 child: GestureDetector(
                   onTap: controller.onPlayPressed,
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 13,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [
@@ -272,8 +343,9 @@ class HomeView extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF00CFFF)
-                              .withValues(alpha: 0.35),
+                          color: const Color(
+                            0xFF00CFFF,
+                          ).withValues(alpha: 0.35),
                           blurRadius: 12,
                           spreadRadius: 1,
                         ),
@@ -306,24 +378,22 @@ class HomeView extends StatelessWidget {
                     ),
                   ),
                 ),
-              ).animate().scale(
-                duration: 400.ms,
-                curve: Curves.easeOutBack,
-              ),
+              ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
 
-              const SizedBox(height:15),
-              Obx(() => Text(
-                'Current Level ${storage.unlockedLevel.value}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              const SizedBox(height: 15),
+              Obx(
+                () => Text(
+                  'Current Level ${storage.unlockedLevel.value}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              )),
+              ),
               const SizedBox(height: 15),
 
               // Action Buttons Row: Levels, Shop, Daily, Settings
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -344,8 +414,7 @@ class HomeView extends StatelessWidget {
                     ),
 
                     Obx(() {
-                      final claimable =
-                      storage.isDailyRewardClaimable();
+                      final claimable = storage.isDailyRewardClaimable();
 
                       return _buildMenuCard(
                         icon: Icons.card_giftcard_rounded,
@@ -379,7 +448,6 @@ class HomeView extends StatelessWidget {
     );
   }
 
-
   Widget _buildMenuCard({
     required IconData icon,
     required String label,
@@ -395,22 +463,15 @@ class HomeView extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [
-                Color(0xFF1B5DA5),
-                Color(0xFF0B3679),
-              ],
+              colors: [Color(0xFF1B5DA5), Color(0xFF0B3679)],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: const Color(0xFF28D9FF),
-              width: 1.3,
-            ),
+            border: Border.all(color: const Color(0xFF28D9FF), width: 1.3),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF001C52)
-                    .withValues(alpha: 0.35),
+                color: const Color(0xFF001C52).withValues(alpha: 0.35),
                 offset: const Offset(0, 4),
                 blurRadius: 0,
               ),
@@ -433,11 +494,7 @@ class HomeView extends StatelessWidget {
                         width: 1.2,
                       ),
                     ),
-                    child: Icon(
-                      icon,
-                      color: color,
-                      size: 25,
-                    ),
+                    child: Icon(icon, color: color, size: 25),
                   ),
 
                   const SizedBox(height: 6),

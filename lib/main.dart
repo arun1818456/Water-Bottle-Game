@@ -9,6 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'features/daily_reward/daily_reward_view.dart';
 import 'features/game/game_view.dart';
 import 'features/home/home_view.dart';
+import 'features/leaderboard/leaderboard_view.dart';
 import 'features/levels/level_select_view.dart';
 import 'features/shop/shop_view.dart';
 import 'features/settings/settings_view.dart';
@@ -90,6 +91,11 @@ class AisWaterBottleApp extends StatelessWidget {
         GetPage(
           name: '/daily-reward',
           page: () => const DailyRewardView(),
+          transition: Transition.rightToLeftWithFade,
+        ),
+        GetPage(
+          name: '/leaderboard',
+          page: () => const LeaderboardView(),
           transition: Transition.rightToLeftWithFade,
         ),
         GetPage(
