@@ -11,41 +11,37 @@ import 'storage_service.dart';
 class AdsService extends GetxService {
   static AdsService get to => Get.find<AdsService>();
 
-  // ===========================================================================
-  // AD UNIT IDs (Configured with official test IDs)
-  // Replace these with your production AdMob ad unit IDs before release!
-  // ===========================================================================
-
   static String get bannerAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      // Android Test Banner ID
-      // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
       if(kDebugMode){
         return 'ca-app-pub-3940256099942544/6300978111';
       }
       return 'ca-app-pub-4886824424959094/2276252420'; //original
     } else if (Platform.isIOS) {
-      // iOS Test Banner ID
-      // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
-      // return 'ca-app-pub-3940256099942544/2934735716';
     }
     return '';
+  }
+
+  static String get gameBannerAdUnitId {
+    if (Platform.isAndroid) {
+      if(kDebugMode){
+        return 'ca-app-pub-3940256099942544/6300978111';
+      }
+      return 'ca-app-pub-4886824424959094/9522410959'; //original
+    } else if (Platform.isIOS) {
+    }
+    return "";
   }
 
   static String get interstitialAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      // Android Test Interstitial ID
-      // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
       if(kDebugMode){
         return 'ca-app-pub-3940256099942544/1033173712';
       }
       return 'ca-app-pub-4886824424959094/7105907276'; //original
     } else if (Platform.isIOS) {
-      // iOS Test Interstitial ID
-      // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
-      // return 'ca-app-pub-3940256099942544/4411468910';
     }
     return '';
   }
@@ -53,16 +49,11 @@ class AdsService extends GetxService {
   static String get rewardedAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      // Android Test Rewarded ID
-      // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
       if(kDebugMode){
         return 'ca-app-pub-3940256099942544/5224354917';
       }
       return 'ca-app-pub-4886824424959094/8315047168';//original
     } else if (Platform.isIOS) {
-      // iOS Test Rewarded ID
-      // PRODUCTION: Replace with "ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"
-      // return 'ca-app-pub-3940256099942544/1712485313';
     }
     return '';
   }
@@ -95,6 +86,7 @@ class AdsService extends GetxService {
         await MobileAds.instance.initialize();
         _isInitialized = true;
         loadHomeBanner();
+        loadGameBanner();
         _loadInterstitialAd();
         _loadRewardedAd();
       } catch (e) {
@@ -144,6 +136,57 @@ class AdsService extends GetxService {
             clipBehavior: Clip.antiAlias,
             child: AdWidget(
               ad: _homeBannerAd!,
+            ),
+          ),
+        );
+      }
+
+      return const SizedBox.shrink();
+    });
+  }
+
+  // --- Banner Ad (Game View) ---
+
+  BannerAd? _gameBannerAd;
+  final RxBool isGameBannerLoaded = false.obs;
+
+  void loadGameBanner() {
+    if (!_isInitialized || isGameBannerLoaded.value) return;
+
+    _gameBannerAd = BannerAd(
+      adUnitId: gameBannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          debugPrint('AdsService: Game Banner Ad loaded.');
+          isGameBannerLoaded.value = true;
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('AdsService: Game Banner Ad failed to load: $error');
+          ad.dispose();
+          _gameBannerAd = null;
+          isGameBannerLoaded.value = false;
+        },
+      ),
+    );
+
+    _gameBannerAd?.load();
+  }
+
+  Widget getGameBannerWidget() {
+    return Obx(() {
+      if (isGameBannerLoaded.value && _gameBannerAd != null) {
+        return Center(
+          child: Container(
+            width: _gameBannerAd!.size.width.toDouble(),
+            height: _gameBannerAd!.size.height.toDouble(),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: AdWidget(
+              ad: _gameBannerAd!,
             ),
           ),
         );
@@ -273,6 +316,7 @@ class AdsService extends GetxService {
   @override
   void onClose() {
     _homeBannerAd?.dispose();
+    _gameBannerAd?.dispose();
     _interstitialAd?.dispose();
     _rewardedAd?.dispose();
     super.onClose();

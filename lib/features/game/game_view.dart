@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/ads_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/utils/haptic_feedback_helper.dart';
@@ -10,7 +11,6 @@ import 'widgets/bottle_widget.dart';
 import 'widgets/celebration_overlay.dart';
 import 'widgets/pour_stream_overlay.dart';
 
-/// Main interactive puzzle screen with modern ambient stage gaming aesthetic
 class GameView extends StatelessWidget {
   final int? levelId;
   final bool isTutorial;
@@ -84,6 +84,9 @@ class GameView extends StatelessWidget {
                       extraBottleDisabled: extraBottleDisabled,
                       hintCount: hintCount,
                     ),
+
+                    // Banner Ad at bottom for levels with 1 or 2 rows of bottles
+                    _buildBannerAdContainer(_getRowLayout(controller.bottles.length).length),
                   ],
                 ),
 
@@ -496,7 +499,23 @@ class GameView extends StatelessWidget {
     );
   }
 
+  /// Banner Ad container shown dynamically for levels with 1 or 2 rows of bottles
+  Widget _buildBannerAdContainer(int rowCount) {
+    if (rowCount > 2 || rowCount <= 0) return const SizedBox.shrink();
+
+    // Ensure game banner ad is loaded
+    AdsService.to.loadGameBanner();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: Center(
+        child: AdsService.to.getGameBannerWidget(),
+      ),
+    );
+  }
+
   List<int> _getRowLayout(int count) {
+    if (count <= 0) return [];
     switch (count) {
       case 1: return [1];
       case 2: return [2];
@@ -516,6 +535,7 @@ class GameView extends StatelessWidget {
       case 16: return [4, 4, 4, 4];
       default:
         int rows = (count / 4).ceil();
+        if (rows <= 0) return [];
         int base = count ~/ rows;
         int remainder = count % rows;
         return List.generate(rows, (i) => base + (i < remainder ? 1 : 0));
