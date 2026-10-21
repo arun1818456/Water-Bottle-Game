@@ -247,6 +247,14 @@ class StorageService extends GetxService {
     return lastClaim != today;
   }
 
+  bool isStreakBroken() {
+    final lastClaim = lastDailyClaimDate.value;
+    if (lastClaim.isEmpty) return false;
+    final today = _todayDateString;
+    final yesterday = _yesterdayDateString;
+    return lastClaim != today && lastClaim != yesterday;
+  }
+
   Future<int> claimDailyReward() async {
     if (!isDailyRewardClaimable()) return 0;
 

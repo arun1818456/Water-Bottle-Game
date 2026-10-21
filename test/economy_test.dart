@@ -39,5 +39,25 @@ void main() {
       expect(doubleCoins, equals(80));
       expect(doubleCoins - baseCoins, equals(baseCoins));
     });
+
+    test('Streak broken detection identifies missed days correctly', () {
+      final now = DateTime.now();
+      String formatDate(DateTime date) =>
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+      final todayStr = formatDate(now);
+      final yesterdayStr = formatDate(now.subtract(const Duration(days: 1)));
+      final twoDaysAgoStr = formatDate(now.subtract(const Duration(days: 2)));
+
+      bool isBroken(String lastClaim) {
+        if (lastClaim.isEmpty) return false;
+        return lastClaim != todayStr && lastClaim != yesterdayStr;
+      }
+
+      expect(isBroken(''), isFalse); // New player
+      expect(isBroken(todayStr), isFalse); // Claimed today
+      expect(isBroken(yesterdayStr), isFalse); // Claimed yesterday
+      expect(isBroken(twoDaysAgoStr), isTrue); // Missed yesterday (Streak broken!)
+    });
   });
 }

@@ -36,73 +36,98 @@ class HomeView extends StatelessWidget {
                     GestureDetector(
                       onTap: controller.onDailyRewardPressed,
                       child: Obx(
-                        () => Container(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF14529B), Color(0xFF0B3B80)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                            border: Border.all(
-                              color: const Color(0xFF20D9FF),
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(40),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFF00CFFF,
-                                ).withValues(alpha: 0.18),
-                                blurRadius: 10,
-                                spreadRadius: 1,
+                        () {
+                          final isBroken = storage.isStreakBroken();
+                          final streak = storage.dailyStreak.value;
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isBroken
+                                    ? [const Color(0xFF5A1212), const Color(0xFF380808)]
+                                    : [const Color(0xFF14529B), const Color(0xFF0B3B80)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(width: 8),
-                              // Flame Circle
-                              Container(
-                                width: 25,
-                                height: 25,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: const Color(0xFF082D69),
-                                  border: Border.all(
-                                    color: const Color(0xFF164F9C),
+                              border: Border.all(
+                                color: isBroken
+                                    ? const Color(0xFFFF5252)
+                                    : const Color(0xFF20D9FF),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(40),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (isBroken
+                                          ? const Color(0xFFFF5252)
+                                          : const Color(0xFF00CFFF))
+                                      .withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(width: 8),
+                                // Circle Badge
+                                Container(
+                                  width: 25,
+                                  height: 25,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isBroken
+                                        ? const Color(0xFF420A0A)
+                                        : const Color(0xFF082D69),
+                                    border: Border.all(
+                                      color: isBroken
+                                          ? const Color(0xFFFF5252)
+                                          : const Color(0xFF164F9C),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: isBroken
+                                        ? const Text(
+                                            '😢',
+                                            style: TextStyle(fontSize: 13),
+                                          )
+                                        : const Icon(
+                                            Icons.local_fire_department_rounded,
+                                            color: Color(0xFFFF5722),
+                                            size: 15,
+                                          ),
                                   ),
                                 ),
-                                child: const Icon(
-                                  Icons.local_fire_department_rounded,
-                                  color: Color(0xFFFF5722),
-                                  size: 15,
+
+                                const SizedBox(width: 8),
+
+                                Text(
+                                  isBroken ? 'Streak Lost 😢' : '$streak Day Streak',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isBroken
+                                        ? const Color(0xFFFF8A8A)
+                                        : Colors.white,
+                                  ),
                                 ),
-                              ),
 
-                              const SizedBox(width: 8),
+                                const SizedBox(width: 8),
 
-                              Text(
-                                '${storage.dailyStreak.value} Day Streak',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                // Right Arrow
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: isBroken
+                                      ? const Color(0xFFFF8A8A)
+                                      : const Color(0xFF38DFFF),
+                                  size: 20,
                                 ),
-                              ),
-
-                              const SizedBox(width: 8),
-
-                              // Right Arrow
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: Color(0xFF38DFFF),
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                        ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
 
@@ -256,63 +281,63 @@ class HomeView extends StatelessWidget {
                             ),
                   ),
                   Spacer(),
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: GestureDetector(
-                      onTap: controller.onLeaderboardPressed,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8E24AA), Color(0xFF4A148C)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(
-                            color: const Color(0xFFE040FB),
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xFFE040FB,
-                              ).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.emoji_events_rounded,
-                              color: Color(0xFFFFD700),
-                              size: 16,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Leaderboard',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 2),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Color(0xFFE040FB),
-                              size: 16,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Align(
+                  //   alignment: Alignment.topRight,
+                  //   child: GestureDetector(
+                  //     onTap: controller.onLeaderboardPressed,
+                  //     child: Container(
+                  //       padding: const EdgeInsets.symmetric(
+                  //         horizontal: 10,
+                  //         vertical: 5,
+                  //       ),
+                  //       decoration: BoxDecoration(
+                  //         gradient: const LinearGradient(
+                  //           colors: [Color(0xFF8E24AA), Color(0xFF4A148C)],
+                  //           begin: Alignment.topLeft,
+                  //           end: Alignment.bottomRight,
+                  //         ),
+                  //         border: Border.all(
+                  //           color: const Color(0xFFE040FB),
+                  //           width: 1.5,
+                  //         ),
+                  //         borderRadius: BorderRadius.circular(30),
+                  //         boxShadow: [
+                  //           BoxShadow(
+                  //             color: const Color(
+                  //               0xFFE040FB,
+                  //             ).withValues(alpha: 0.3),
+                  //             blurRadius: 8,
+                  //           ),
+                  //         ],
+                  //       ),
+                  //       child: const Row(
+                  //         mainAxisSize: MainAxisSize.min,
+                  //         children: [
+                  //           Icon(
+                  //             Icons.emoji_events_rounded,
+                  //             color: Color(0xFFFFD700),
+                  //             size: 16,
+                  //           ),
+                  //           SizedBox(width: 4),
+                  //           Text(
+                  //             'Leaderboard',
+                  //             style: TextStyle(
+                  //               fontSize: 10,
+                  //               fontWeight: FontWeight.bold,
+                  //               color: Colors.white,
+                  //             ),
+                  //           ),
+                  //           SizedBox(width: 2),
+                  //           Icon(
+                  //             Icons.chevron_right_rounded,
+                  //             color: Color(0xFFE040FB),
+                  //             size: 16,
+                  //           ),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
 

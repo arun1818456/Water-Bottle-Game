@@ -232,24 +232,32 @@ class DailyRewardView extends StatelessWidget {
 
   /// Modern Streak Hero Card with 7-Day milestone indicator
   Widget _buildStreakHero(DailyRewardController controller, int streak, bool isClaimable) {
+    final isBroken = controller.storage.isStreakBroken();
     final activeCycleDay = isClaimable ? (streak % 7) : ((streak - 1) % 7);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF103362), Color(0xFF091F3E)],
+        gradient: LinearGradient(
+          colors: isBroken
+              ? [const Color(0xFF4A1010), const Color(0xFF260808)]
+              : [const Color(0xFF103362), const Color(0xFF091F3E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFF268AFF).withValues(alpha: 0.5),
+          color: isBroken
+              ? const Color(0xFFFF5252)
+              : const Color(0xFF268AFF).withValues(alpha: 0.5),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0072FF).withValues(alpha: 0.25),
+            color: (isBroken
+                    ? const Color(0xFFFF5252)
+                    : const Color(0xFF0072FF))
+                .withValues(alpha: 0.25),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -259,27 +267,34 @@ class DailyRewardView extends StatelessWidget {
         children: [
           Row(
             children: [
-              // Glowing Flame Icon
+              // Icon Badge
               Container(
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFFFF7043), Color(0xFFD84315)],
+                  gradient: RadialGradient(
+                    colors: isBroken
+                        ? [const Color(0xFFE53935), const Color(0xFFB71C1C)]
+                        : [const Color(0xFFFF7043), const Color(0xFFD84315)],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF5722).withValues(alpha: 0.5),
+                      color: (isBroken ? const Color(0xFFFF5252) : const Color(0xFFFF5722))
+                          .withValues(alpha: 0.5),
                       blurRadius: 16,
                       spreadRadius: 2,
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.local_fire_department_rounded,
-                  color: Colors.white,
-                  size: 32,
+                child: Center(
+                  child: isBroken
+                      ? const Text('😢', style: TextStyle(fontSize: 28))
+                      : const Icon(
+                          Icons.local_fire_department_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                 ),
               )
                   .animate(onPlay: Get.testMode ? null : (c) => c.repeat(reverse: true))
@@ -294,7 +309,7 @@ class DailyRewardView extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          '$streak Day Streak',
+                          isBroken ? 'Streak Broken 😢' : '$streak Day Streak',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -305,19 +320,28 @@ class DailyRewardView extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF5722).withValues(alpha: 0.25),
+                            color: (isBroken
+                                    ? const Color(0xFFFF5252)
+                                    : const Color(0xFFFF5722))
+                                .withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: const Color(0xFFFF7043),
+                              color: isBroken
+                                  ? const Color(0xFFFF5252)
+                                  : const Color(0xFFFF7043),
                               width: 1,
                             ),
                           ),
                           child: Text(
-                            isClaimable ? 'READY' : 'ACTIVE',
-                            style: const TextStyle(
+                            isBroken
+                                ? 'MISSED 💔'
+                                : (isClaimable ? 'READY' : 'ACTIVE'),
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFF8A65),
+                              color: isBroken
+                                  ? const Color(0xFFFF8A8A)
+                                  : const Color(0xFFFF8A65),
                             ),
                           ),
                         ),
@@ -325,9 +349,11 @@ class DailyRewardView extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      isClaimable
-                          ? 'Claim today\'s prize to keep your streak going!'
-                          : 'Streak saved! Come back tomorrow for Day ${((streak) % 7) + 1} reward.',
+                      isBroken
+                          ? 'Oh no! You missed a day. Claim today\'s prize to start fresh!'
+                          : (isClaimable
+                              ? 'Claim today\'s prize to keep your streak going!'
+                              : 'Streak saved! Come back tomorrow for Day ${((streak) % 7) + 1} reward.'),
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -834,6 +860,8 @@ class DailyRewardView extends StatelessWidget {
 
   /// Modern Bottom Claim Action Bar
   Widget _buildBottomActionBar(DailyRewardController controller, bool canClaim, int todayReward) {
+    final isBroken = controller.storage.isStreakBroken();
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
@@ -859,18 +887,24 @@ class DailyRewardView extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFFFEA79),
-                      Color(0xFFFF9800),
-                      Color(0xFFE65100),
-                    ],
+                  gradient: LinearGradient(
+                    colors: isBroken
+                        ? [
+                            const Color(0xFFFF7043),
+                            const Color(0xFFE65100),
+                            const Color(0xFFBF360C),
+                          ]
+                        : [
+                            const Color(0xFFFFEA79),
+                            const Color(0xFFFF9800),
+                            const Color(0xFFE65100),
+                          ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: const Color(0xFFFFF176),
+                    color: isBroken ? const Color(0xFFFF8A65) : const Color(0xFFFFF176),
                     width: 1.5,
                   ),
                   boxShadow: [
@@ -888,14 +922,19 @@ class DailyRewardView extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.monetization_on_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+                    if (isBroken)
+                      const Text('😢 ', style: TextStyle(fontSize: 20))
+                    else
+                      const Icon(
+                        Icons.monetization_on_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                     const SizedBox(width: 8),
                     Text(
-                      'CLAIM TODAY\'S REWARD (+$todayReward COINS)',
+                      isBroken
+                          ? 'RESTART STREAK (+$todayReward COINS)'
+                          : 'CLAIM TODAY\'S REWARD (+$todayReward COINS)',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
