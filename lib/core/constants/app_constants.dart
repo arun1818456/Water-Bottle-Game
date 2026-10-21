@@ -8,6 +8,7 @@ class AppConstants {
 
   // Game Rules
   static const int maxBottleCapacity = 4;
+  static const int maxExtraBottles = 2;
   static const int totalHandcraftedLevels = 400;
 
   // Economy & Rewards

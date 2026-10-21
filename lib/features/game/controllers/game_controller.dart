@@ -46,7 +46,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   final RxInt moveCount = 0.obs;
   final RxInt undoUsedCount = 0.obs;
   final RxInt hintUsedCount = 0.obs;
-  final RxBool addedExtraBottle = false.obs;
+  final RxInt extraBottlesAdded = 0.obs;
+  bool get extraBottleDisabled => extraBottlesAdded.value >= AppConstants.maxExtraBottles;
+  bool get addedExtraBottle => extraBottleDisabled;
 
   // Hints & Overlays
   final RxnInt hintSourceIndex = RxnInt();
@@ -111,8 +113,10 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     moveCount.value = 0;
     undoUsedCount.value = 0;
     hintUsedCount.value = 0;
-    addedExtraBottle.value = false;
+    extraBottlesAdded.value = 0;
     tutorialStep.value = 0;
+
+    AdsService.to.preloadRewardedAd();
 
     if (isTutorial) {
       difficulty.value = 'Tutorial';
@@ -449,6 +453,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           onUndo: () => undoMove(),
           onRestart: () => restartLevel(),
           onAddBottle: () => addExtraEmptyBottleWithAd(),
+          extraBottleDisabled: extraBottleDisabled,
         ),
         barrierDismissible: false,
       );
@@ -511,6 +516,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void addExtraEmptyBottleWithAd() {
+    if (extraBottleDisabled) return;
+
     AdsService.to.showRewardedAd(
       onUserEarnedReward: (reward) {
         addExtraEmptyBottle();
@@ -519,9 +526,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void addExtraEmptyBottle() {
-    if (addedExtraBottle.value) return;
+    if (extraBottleDisabled) return;
 
-    addedExtraBottle.value = true;
+    extraBottlesAdded.value++;
     bottles.add(Bottle());
     bottles.refresh();
     AudioService.to.playButtonClick();

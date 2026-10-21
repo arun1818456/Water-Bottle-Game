@@ -9,12 +9,14 @@ class DefeatDialog extends StatelessWidget {
   final VoidCallback onUndo;
   final VoidCallback onRestart;
   final VoidCallback onAddBottle;
+  final bool extraBottleDisabled;
 
   const DefeatDialog({
     super.key,
     required this.onUndo,
     required this.onRestart,
     required this.onAddBottle,
+    this.extraBottleDisabled = false,
   });
 
   @override
@@ -79,35 +81,44 @@ class DefeatDialog extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Add Extra Bottle Button (via ad)
-            GestureDetector(
-              onTap: () {
-                AudioService.to.playButtonClick();
-                Get.back();
-                onAddBottle();
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.accentNeonGreen, Color(0xFF00B0FF)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 22),
-                    SizedBox(width: 8),
-                    Text(
-                      'Add Extra Bottle (Ad)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+            Opacity(
+              opacity: extraBottleDisabled ? 0.4 : 1.0,
+              child: GestureDetector(
+                onTap: extraBottleDisabled
+                    ? null
+                    : () {
+                        AudioService.to.playButtonClick();
+                        Get.back();
+                        onAddBottle();
+                      },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: extraBottleDisabled
+                          ? [Colors.grey, Colors.grey.shade700]
+                          : [AppColors.accentNeonGreen, const Color(0xFF00B0FF)],
                     ),
-                  ],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        extraBottleDisabled
+                            ? 'Add Extra Bottle (Limit Reached)'
+                            : 'Add Extra Bottle (Ad)',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

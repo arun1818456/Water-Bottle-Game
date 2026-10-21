@@ -34,7 +34,7 @@ class GameView extends StatelessWidget {
         final currentLevel = controller.levelId.value;
         final difficultyText = controller.difficulty.value;
         final moveHistoryCount = controller.moveHistory.length;
-        final extraBottleDisabled = controller.addedExtraBottle.value;
+        final extraBottleDisabled = controller.extraBottleDisabled;
         final hintCount = controller.hintUsedCount.value;
 
         return Container(
@@ -666,7 +666,7 @@ class GameView extends StatelessWidget {
             icon: Icons.add_circle_outline_rounded,
             iconColor: const Color(0xFF00E5FF),
             label: '+ Bottle',
-            badge: 'Ad',
+            badge: extraBottleDisabled ? null : 'Ad',
             badgeColor: const Color(0xFF00E5FF),
             onTap: () => controller.addExtraEmptyBottleWithAd(),
             disabled: extraBottleDisabled,

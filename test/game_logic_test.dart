@@ -165,5 +165,42 @@ void main() {
       expect(bottle0.isLayerHidden(0), isTrue);
     });
   });
+
+  group('Extra Bottle Limit Rules', () {
+    test('Allows adding up to maxExtraBottles (2) extra bottles', () {
+      final bottles = <Bottle>[Bottle(), Bottle()];
+      int extraBottlesAdded = 0;
+      const maxExtraBottles = 2;
+
+      bool canAddExtraBottle() => extraBottlesAdded < maxExtraBottles;
+
+      void addExtraEmptyBottle() {
+        if (!canAddExtraBottle()) return;
+        extraBottlesAdded++;
+        bottles.add(Bottle());
+      }
+
+      // Initial count
+      expect(bottles.length, equals(2));
+      expect(canAddExtraBottle(), isTrue);
+
+      // Add 1st extra bottle
+      addExtraEmptyBottle();
+      expect(bottles.length, equals(3));
+      expect(extraBottlesAdded, equals(1));
+      expect(canAddExtraBottle(), isTrue);
+
+      // Add 2nd extra bottle
+      addExtraEmptyBottle();
+      expect(bottles.length, equals(4));
+      expect(extraBottlesAdded, equals(2));
+      expect(canAddExtraBottle(), isFalse);
+
+      // Attempt to add 3rd extra bottle - should be blocked
+      addExtraEmptyBottle();
+      expect(bottles.length, equals(4));
+      expect(extraBottlesAdded, equals(2));
+    });
+  });
 }
 

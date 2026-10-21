@@ -278,6 +278,11 @@ class AdsService extends GetxService {
     );
   }
 
+  /// Preloads rewarded ad if not already loaded or loading
+  void preloadRewardedAd() {
+    _loadRewardedAd();
+  }
+
   /// Shows rewarded ad with a callback on reward earned
   void showRewardedAd({
     required Function(RewardItem reward) onUserEarnedReward,
@@ -305,11 +310,17 @@ class AdsService extends GetxService {
         onUserEarnedReward(reward);
       });
     } else {
-      // In development or when ad is not available, reward the user anyway or handle gracefully
-      debugPrint('AdsService: Rewarded ad not ready, providing fallback reward.');
+      debugPrint('AdsService: Rewarded ad not ready. Attempting reload.');
       _loadRewardedAd();
-      onUserEarnedReward(RewardItem(50, 'Coins'));
-      onAdClosed?.call();
+      onAdFailed?.call();
+      Get.snackbar(
+        'Ad Loading',
+        'Rewarded ad is loading. Please try again in a moment.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
     }
   }
 
