@@ -417,9 +417,6 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       }
 
       await StorageService.to.completeLevel(levelId.value, stars);
-      if (actualCoinsEarned > 0) {
-        await StorageService.to.addCoins(actualCoinsEarned);
-      }
     }
 
     // Show Interstitial ad if eligible (every 4 levels)

@@ -41,7 +41,9 @@ class VictoryDialog extends StatefulWidget {
 }
 
 class _VictoryDialogState extends State<VictoryDialog> {
-   bool _doubleCoinsClaimed = false;
+  bool _coinsClaimed = false;
+  bool _doubleCoinsClaimed = false;
+  bool _isProcessingAd = false;
   late int _totalEarnedCoins;
 
   @override
@@ -50,20 +52,60 @@ class _VictoryDialogState extends State<VictoryDialog> {
     _totalEarnedCoins = widget.baseCoins;
   }
 
+  void _claimBaseCoinsIfNeeded() {
+    if (!_coinsClaimed && widget.baseCoins > 0) {
+      _coinsClaimed = true;
+      StorageService.to.addCoins(widget.baseCoins);
+    }
+  }
+
   void _onDoubleCoinsPressed() {
-    if (_doubleCoinsClaimed) return;
+    if (_doubleCoinsClaimed || _isProcessingAd || widget.baseCoins <= 0) return;
+
+    setState(() {
+      _isProcessingAd = true;
+    });
     AudioService.to.playButtonClick();
 
     AdsService.to.showRewardedAd(
       onUserEarnedReward: (reward) {
+        if (!mounted) return;
         setState(() {
+          _isProcessingAd = false;
           _doubleCoinsClaimed = true;
-          final extraCoins = widget.baseCoins;
-          _totalEarnedCoins += extraCoins;
-          StorageService.to.addCoins(extraCoins);
+          _coinsClaimed = true;
+          _totalEarnedCoins = widget.baseCoins * 2;
         });
+        StorageService.to.addCoins(widget.baseCoins * 2);
+      },
+      onAdClosed: () {
+        if (mounted) {
+          setState(() {
+            _isProcessingAd = false;
+          });
+        }
+      },
+      onAdFailed: () {
+        if (mounted) {
+          setState(() {
+            _isProcessingAd = false;
+          });
+        }
       },
     );
+  }
+
+  void _handleNavigation(VoidCallback callback) {
+    AudioService.to.playButtonClick();
+    _claimBaseCoinsIfNeeded();
+    Get.back();
+    callback();
+  }
+
+  @override
+  void dispose() {
+    _claimBaseCoinsIfNeeded();
+    super.dispose();
   }
 
   @override
@@ -95,7 +137,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
               ).createShader(bounds),
               child: Text(
                 widget.title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
@@ -151,28 +193,48 @@ class _VictoryDialogState extends State<VictoryDialog> {
                   const SizedBox(width: 8),
                   Text(
                     '+$_totalEarnedCoins Coins',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: _doubleCoinsClaimed ? const Color(0xFFFFD700) : AppColors.textPrimary,
                     ),
                   ),
+                  if (_doubleCoinsClaimed) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9100),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        '2X',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // Double Coins Button (only shown if coins were earned)
+            // Double Coins Button (only shown if coins were earned and not yet claimed)
             if (!_doubleCoinsClaimed && widget.baseCoins > 0)
               GestureDetector(
-                onTap: _onDoubleCoinsPressed,
+                onTap: _isProcessingAd ? null : _onDoubleCoinsPressed,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFF9100), Color(0xFFFF5722)],
+                    gradient: LinearGradient(
+                      colors: _isProcessingAd
+                          ? [Colors.grey, Colors.grey.shade700]
+                          : [const Color(0xFFFF9100), const Color(0xFFFF5722)],
                     ),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
@@ -183,14 +245,18 @@ class _VictoryDialogState extends State<VictoryDialog> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.video_collection_rounded, color: Colors.white, size: 22),
-                      SizedBox(width: 8),
+                      Icon(
+                        _isProcessingAd ? Icons.hourglass_top_rounded : Icons.video_collection_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Double Coins (2x)',
-                        style: TextStyle(
+                        _isProcessingAd ? 'Loading Ad...' : 'Double Coins (2x)',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -210,26 +276,22 @@ class _VictoryDialogState extends State<VictoryDialog> {
             // Next Level Button
             if (widget.showNextLevel)
               GestureDetector(
-              onTap: () {
-                AudioService.to.playButtonClick();
-                Get.back();
-                widget.onNextLevel();
-              },
+                onTap: () => _handleNavigation(widget.onNextLevel),
                 child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                decoration: AppTheme.gradientButtonBox(),
-                child: const Center(
-                  child: Text(
-                    'NEXT LEVEL',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF002244),
-                      letterSpacing: 1.2,
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: AppTheme.gradientButtonBox(),
+                  child: const Center(
+                    child: Text(
+                      'NEXT LEVEL',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF002244),
+                        letterSpacing: 1.2,
+                      ),
                     ),
                   ),
-                ),
                 ),
               ),
 
@@ -240,21 +302,17 @@ class _VictoryDialogState extends State<VictoryDialog> {
               children: [
                 if (widget.showReplay)
                   Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white38),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white38),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => _handleNavigation(widget.onRestart),
+                      icon: const Icon(Icons.replay_rounded, size: 18, color: Colors.white),
+                      label: const Text('Replay', style: TextStyle(color: Colors.white)),
                     ),
-                    onPressed: () {
-                      AudioService.to.playButtonClick();
-                      Get.back();
-                      widget.onRestart();
-                    },
-                    icon: const Icon(Icons.replay_rounded, size: 18, color: Colors.white),
-                    label: const Text('Replay', style: TextStyle(color: Colors.white)),
                   ),
-                ),
                 if (widget.showReplay) const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
@@ -263,11 +321,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onPressed: () {
-                      AudioService.to.playButtonClick();
-                      Get.back();
-                      widget.onHome();
-                    },
+                    onPressed: () => _handleNavigation(widget.onHome),
                     icon: const Icon(Icons.grid_view_rounded, size: 18, color: Colors.white),
                     label: Text(widget.homeLabel, style: const TextStyle(color: Colors.white)),
                   ),

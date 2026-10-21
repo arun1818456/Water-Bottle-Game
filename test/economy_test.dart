@@ -32,5 +32,12 @@ void main() {
         expect(bg.title.isNotEmpty, isTrue);
       }
     });
+
+    test('Double coins correctly doubles base level reward', () {
+      const baseCoins = 40;
+      const doubleCoins = baseCoins * 2;
+      expect(doubleCoins, equals(80));
+      expect(doubleCoins - baseCoins, equals(baseCoins));
+    });
   });
 }

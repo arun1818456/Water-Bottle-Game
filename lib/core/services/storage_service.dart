@@ -114,6 +114,7 @@ class StorageService extends GetxService {
   }
 
   Future<bool> spendCoins(int amount) async {
+    if (amount <= 0) return true;
     if (coins.value < amount) return false;
     coins.value -= amount;
     await _prefs.setInt(_keyCoins, coins.value);

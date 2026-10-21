@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/ads_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
 
@@ -76,144 +77,260 @@ class DailyRewardController extends GetxController {
 
   void _showCelebrationDialog(int earned) {
     Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF132F5C), Color(0xFF0B1A34)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: const Color(0xFFFFD700).withValues(alpha: 0.8),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.3),
-                blurRadius: 30,
-                spreadRadius: 2,
-              ),
-              const BoxShadow(
-                color: Colors.black54,
-                blurRadius: 20,
-                offset: Offset(0, 10),
-              ),
-            ],
+      _DailyCelebrationDialog(earned: earned, storage: storage),
+      barrierDismissible: true,
+    );
+  }
+}
+
+class _DailyCelebrationDialog extends StatefulWidget {
+  final int earned;
+  final StorageService storage;
+
+  const _DailyCelebrationDialog({
+    required this.earned,
+    required this.storage,
+  });
+
+  @override
+  State<_DailyCelebrationDialog> createState() => _DailyCelebrationDialogState();
+}
+
+class _DailyCelebrationDialogState extends State<_DailyCelebrationDialog> {
+  bool _isDoubled = false;
+  bool _isProcessingAd = false;
+
+  void _onDoublePressed() {
+    if (_isDoubled || _isProcessingAd) return;
+    setState(() => _isProcessingAd = true);
+    AudioService.to.playButtonClick();
+
+    AdsService.to.showRewardedAd(
+      onUserEarnedReward: (reward) {
+        if (!mounted) return;
+        setState(() {
+          _isProcessingAd = false;
+          _isDoubled = true;
+        });
+        StorageService.to.addCoins(widget.earned);
+      },
+      onAdClosed: () {
+        if (mounted) setState(() => _isProcessingAd = false);
+      },
+      onAdFailed: () {
+        if (mounted) setState(() => _isProcessingAd = false);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCoins = _isDoubled ? widget.earned * 2 : widget.earned;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF132F5C), Color(0xFF0B1A34)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Glowing coin badge
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFFFFEA79), Color(0xFFFF9800), Color(0xFFE65100)],
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: const Color(0xFFFFD700).withValues(alpha: 0.8),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+              blurRadius: 30,
+              spreadRadius: 2,
+            ),
+            const BoxShadow(
+              color: Colors.black54,
+              blurRadius: 20,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Glowing coin badge
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const RadialGradient(
+                  colors: [Color(0xFFFFEA79), Color(0xFFFF9800), Color(0xFFE65100)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.6),
+                    blurRadius: 25,
+                    spreadRadius: 4,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.6),
-                      blurRadius: 25,
-                      spreadRadius: 4,
+                ],
+              ),
+              child: const Icon(
+                Icons.monetization_on_rounded,
+                color: Colors.white,
+                size: 58,
+              ),
+            )
+                .animate()
+                .scale(duration: 600.ms, curve: Curves.easeOutBack)
+                .shimmer(delay: 300.ms, duration: 1000.ms),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'REWARD CLAIMED!',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFFFFD700),
+                letterSpacing: 1.5,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '+$totalCoins COINS',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                if (_isDoubled) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF9100),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.monetization_on_rounded,
-                  color: Colors.white,
-                  size: 58,
-                ),
-              )
-                  .animate()
-                  .scale(duration: 600.ms, curve: Curves.elasticOut)
-                  .shimmer(delay: 300.ms, duration: 1000.ms),
+                    child: const Text(
+                      '2X',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
 
-              const SizedBox(height: 20),
+            const SizedBox(height: 8),
 
-              const Text(
-                'REWARD CLAIMED!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFD700),
-                  letterSpacing: 1.5,
-                ),
+            Text(
+              'Streak: ${widget.storage.dailyStreak.value} Days 🔥',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryCyan,
               ),
+            ),
 
-              const SizedBox(height: 10),
+            const SizedBox(height: 20),
 
-              Text(
-                '+$earned COINS',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.0,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Streak: ${storage.dailyStreak.value} Days 🔥',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryCyan,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
+            if (!_isDoubled) ...[
               GestureDetector(
-                onTap: () => Get.back(),
+                onTap: _isProcessingAd ? null : _onDoublePressed,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00E5FF), Color(0xFF0072FF)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                    gradient: LinearGradient(
+                      colors: _isProcessingAd
+                          ? [Colors.grey, Colors.grey.shade700]
+                          : [const Color(0xFFFF9100), const Color(0xFFFF5722)],
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFF80D8FF),
-                      width: 1.5,
-                    ),
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
+                        color: Colors.orange.withAlpha(100),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: const Center(
-                    child: Text(
-                      'AWESOME!',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _isProcessingAd ? Icons.hourglass_top_rounded : Icons.video_collection_rounded,
                         color: Colors.white,
-                        letterSpacing: 1.2,
+                        size: 22,
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isProcessingAd ? 'Loading Ad...' : 'Double Reward (2x)',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00E5FF), Color(0xFF0072FF)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF80D8FF),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    'AWESOME!',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      barrierDismissible: true,
     );
   }
 }
