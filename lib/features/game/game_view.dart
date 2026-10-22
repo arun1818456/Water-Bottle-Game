@@ -38,6 +38,7 @@ class GameView extends StatelessWidget {
         return Container(
           decoration: _buildBackgroundDecoration(currentBg),
           child: SafeArea(
+            bottom: false,
             child: Stack(
               children: [
                 // Ambient stage light aura behind bottles
@@ -81,8 +82,8 @@ class GameView extends StatelessWidget {
                       ),
                     ),
 
-                    // Banner Ad at bottom for levels with 1 or 2 rows of bottles
-                    _buildBannerAdContainer(_getRowLayout(controller.bottles.length).length),
+                    // Banner Ad at absolute bottom for all levels
+                    _buildBannerAdContainer(),
                   ],
                 ),
 
@@ -457,15 +458,15 @@ class GameView extends StatelessWidget {
     );
   }
 
-  /// Banner Ad container shown dynamically for levels with 1 or 2 rows of bottles
-  Widget _buildBannerAdContainer(int rowCount) {
-    if (rowCount > 2 || rowCount <= 0) return const SizedBox.shrink();
-
+  /// Banner Ad container shown at absolute bottom for all levels
+  Widget _buildBannerAdContainer() {
     // Ensure game banner ad is loaded
     AdsService.to.loadGameBanner();
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 4),
+    return Container(
+      width: double.infinity,
+      color: Colors.transparent,
+      padding: const EdgeInsets.only(top: 2),
       child: Center(
         child: AdsService.to.getGameBannerWidget(),
       ),
