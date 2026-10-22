@@ -24,6 +24,7 @@ class LeaderboardView extends StatelessWidget {
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               // 1. Top Bar
@@ -94,7 +95,7 @@ class LeaderboardView extends StatelessWidget {
 
   Widget _buildTopBar(BuildContext context, LeaderboardController controller) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 18, bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

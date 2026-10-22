@@ -42,6 +42,7 @@ class SettingsView extends StatelessWidget {
           ),
 
           SafeArea(
+            bottom: false,
             child: Obx(() {
               // Reactive values observed by this top-level Obx
               final soundEnabled = storage.soundEnabled.value;
@@ -198,7 +199,7 @@ class SettingsView extends StatelessWidget {
   /// Top Bar with Glass Back Button
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 18, bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

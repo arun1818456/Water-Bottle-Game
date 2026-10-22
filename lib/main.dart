@@ -24,13 +24,18 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Hide system navigation bar completely across the ENTIRE APP from Splash screen startup
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
       systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
       systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarContrastEnforced: false,
     ),
   );
 

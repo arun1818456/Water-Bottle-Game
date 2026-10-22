@@ -41,6 +41,7 @@ class DailyRewardView extends StatelessWidget {
           ),
 
           SafeArea(
+            bottom: false,
             child: Obx(() {
               // Read reactive values inside this single top-level Obx
               final streak = controller.storage.dailyStreak.value;
@@ -120,7 +121,7 @@ class DailyRewardView extends StatelessWidget {
   /// Top bar with back button, screen title, and coin balance
   Widget _buildTopBar(BuildContext context, int coins) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 18, bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

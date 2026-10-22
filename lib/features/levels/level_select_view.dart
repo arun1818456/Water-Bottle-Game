@@ -41,6 +41,7 @@ class LevelSelectView extends StatelessWidget {
           ),
 
           SafeArea(
+            bottom: false,
             child: Obx(() {
               final coins = controller.storage.coins.value;
               final unlockedLevel = controller.storage.unlockedLevel.value;
@@ -107,7 +108,7 @@ class LevelSelectView extends StatelessWidget {
   /// Top Bar with Glass Back Button, Title, and Coins Counter
   Widget _buildTopBar(int coins) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 18, bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

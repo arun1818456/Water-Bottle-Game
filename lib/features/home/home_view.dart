@@ -24,11 +24,12 @@ class HomeView extends StatelessWidget {
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               // Top Bar: Coins & Streak
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
+                padding: const EdgeInsets.only(left: 12, right: 12, top: 18, bottom: 6),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -462,10 +463,8 @@ class HomeView extends StatelessWidget {
 
               const Spacer(flex: 1),
 
-              // AdMob Banner at bottom of home screen
+              // AdMob Banner at bottom of home screen (attached to absolute bottom)
               controller.ads.getHomeBannerWidget(),
-
-              const SizedBox(height: 8),
             ],
           ),
         ),
