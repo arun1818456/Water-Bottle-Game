@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/services/audio_service.dart';
-import '../../../core/theme/app_theme.dart';
 
-/// Popup modal when no valid moves remain
+/// Modern Gaming Dialog shown when no valid matching pours remain
 class DefeatDialog extends StatelessWidget {
   final VoidCallback onUndo;
   final VoidCallback onRestart;
@@ -23,66 +22,157 @@ class DefeatDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
         decoration: BoxDecoration(
-          color: AppColors.backgroundMid.withAlpha(250),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.accentCoral.withAlpha(140), width: 2),
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF261208),
+              Color(0xFF180A04),
+              Color(0xFF0D0402),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: const Color(0xFFFF6D00).withValues(alpha: 0.6),
+            width: 1.8,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accentCoral.withAlpha(50),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: const Color(0xFFFF6D00).withValues(alpha: 0.25),
+              blurRadius: 30,
+              spreadRadius: 2,
+            ),
+            const BoxShadow(
+              color: Colors.black87,
+              blurRadius: 20,
+              offset: Offset(0, 10),
             ),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icon
+            // Top Glowing Lock / Stuck Badge
             Container(
-              padding: const EdgeInsets.all(16),
+              width: 58,
+              height: 58,
               decoration: BoxDecoration(
-                color: AppColors.accentCoral.withAlpha(40),
                 shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8D3000), Color(0xFF4A1800)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(
+                  color: const Color(0xFFFF9100),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6D00).withValues(alpha: 0.4),
+                    blurRadius: 16,
+                  ),
+                ],
               ),
               child: const Icon(
-                Icons.block_flipped,
-                size: 48,
-                color: AppColors.accentCoral,
+                Icons.grid_off_rounded,
+                color: Color(0xFFFFD180),
+                size: 30,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Shader Mask Title
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [
+                  Color(0xFFFFD180),
+                  Color(0xFFFFFFFF),
+                  Color(0xFFFF9100),
+                ],
+              ).createShader(bounds),
+              child: const Text(
+                'PUZZLE STUCK!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1.8,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            // Subtitle Status Pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6D00).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFFFF6D00).withValues(alpha: 0.35),
+                  width: 1,
+                ),
+              ),
+              child: const Text(
+                'NO MATCHING POURS LEFT',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFFFB74D),
+                  letterSpacing: 1.0,
+                ),
               ),
             ),
 
             const SizedBox(height: 16),
 
-            const Text(
-              'NO MOVES LEFT!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 1.2,
+            // Informative Explanation Glass Box
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 1,
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFFFB74D),
+                    size: 20,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'No bottles can receive water right now. Add a bottle or undo to unlock the board!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFFFE0B2),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
 
-            const Text(
-              'You are stuck! Choose an assist or restart to continue.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Add Extra Bottle Button (via ad)
+            // Add Extra Bottle Button (Primary Glowing CTA)
             Opacity(
-              opacity: extraBottleDisabled ? 0.4 : 1.0,
+              opacity: extraBottleDisabled ? 0.45 : 1.0,
               child: GestureDetector(
                 onTap: extraBottleDisabled
                     ? null
@@ -97,24 +187,40 @@ class DefeatDialog extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: extraBottleDisabled
-                          ? [Colors.grey, Colors.grey.shade700]
-                          : [AppColors.accentNeonGreen, const Color(0xFF00B0FF)],
+                          ? [Colors.grey.shade700, Colors.grey.shade900]
+                          : [const Color(0xFF00E676), const Color(0xFF00B0FF)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: !extraBottleDisabled
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF00E676).withValues(alpha: 0.35),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 22),
+                      const Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: Color(0xFF002233),
+                        size: 22,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         extraBottleDisabled
-                            ? 'Add Extra Bottle (Limit Reached)'
-                            : 'Add Extra Bottle (Ad)',
+                            ? 'ADD EXTRA BOTTLE (LIMIT REACHED)'
+                            : 'ADD EXTRA BOTTLE (AD)',
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF002233),
+                          letterSpacing: 0.8,
                         ),
                       ),
                     ],
@@ -125,7 +231,7 @@ class DefeatDialog extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Undo Button
+            // Undo Button (Purple Accent Glass)
             GestureDetector(
               onTap: () {
                 AudioService.to.playButtonClick();
@@ -134,22 +240,37 @@ class DefeatDialog extends StatelessWidget {
               },
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: AppTheme.glassBox(
-                  color: AppColors.glassFillHeavy,
-                  borderRadius: 16,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF231024).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFF9C27B0).withValues(alpha: 0.6),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF9C27B0).withValues(alpha: 0.15),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.undo_rounded, color: AppColors.primaryCyan, size: 22),
+                    Icon(
+                      Icons.undo_rounded,
+                      color: Color(0xFFE040FB),
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
                     Text(
-                      'Undo Last Move',
+                      'UNDO LAST MOVE',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
@@ -159,19 +280,55 @@ class DefeatDialog extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Restart Button
-            TextButton.icon(
-              onPressed: () {
+            // Restart Button (Amber Accent Glass)
+            GestureDetector(
+              onTap: () {
                 AudioService.to.playButtonClick();
                 Get.back();
                 onRestart();
               },
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
-              label: const Text('Restart Level', style: TextStyle(color: Colors.white70)),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF231808).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFFFFB300).withValues(alpha: 0.6),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFB300).withValues(alpha: 0.15),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.refresh_rounded,
+                      color: Color(0xFFFFB300),
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'RESTART LEVEL',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
-    );
+    ).animate().scale(duration: 280.ms, curve: Curves.easeOutBack).fadeIn(duration: 220.ms);
   }
 }
