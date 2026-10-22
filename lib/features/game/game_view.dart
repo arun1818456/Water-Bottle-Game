@@ -95,10 +95,6 @@ class GameView extends StatelessWidget {
                   streamProgress: controller.streamProgress.value,
                 ),
 
-                // Active Pouring Bottle Overlay (ALWAYS ON TOP OF TARGET BOTTLE)
-                if (controller.isPouring.value && controller.pouringSourceIndex.value != null)
-                  _buildPouringBottleOverlay(controller, currentSkin),
-
                 // Victory Confetti Layer
                 if (controller.showCelebration.value)
                   const CelebrationOverlay(),
@@ -491,10 +487,9 @@ class GameView extends StatelessWidget {
       case 10: return [3, 4, 3];
       case 11: return [4, 3, 4];
       case 12: return [4, 4, 4];
-      case 13: return [4, 3, 3, 3];
-      case 14: return [4, 4, 3, 3];
-      case 15: return [4, 4, 4, 3];
-      case 16: return [4, 4, 4, 4];
+      case 13: return [4, 5, 4];
+      case 14: return [5, 5, 4];
+      case 15: return [5, 5, 5];
       default:
         int rows = (count / 4).ceil();
         if (rows <= 0) return [];
@@ -562,26 +557,9 @@ class GameView extends StatelessWidget {
     final isPouringSource = controller.pouringSourceIndex.value == index;
     final isPouringTarget = controller.pouringTargetIndex.value == index;
 
-    if (isPouringSource) {
-      // Hide source bottle in grid during pour because it is painted
-      // in front via _buildPouringBottleOverlay to guarantee Z-index!
-      return Visibility(
-        visible: false,
-        maintainSize: true,
-        maintainAnimation: true,
-        maintainState: true,
-        child: BottleWidget(
-          key: controller.getBottleKey(index),
-          bottle: bottle,
-          index: index,
-          isSelected: false,
-          skinType: skinType,
-          isColorblindMode: controller.isColorblindMode.value,
-          onTap: () {},
-        ),
-      );
-    }
-
+    final drainAmount = isPouringSource
+        ? controller.streamProgress.value * controller.pouringAmount.value
+        : 0.0;
     final fillAmount = isPouringTarget
         ? controller.streamProgress.value * controller.pouringAmount.value
         : 0.0;
@@ -595,48 +573,13 @@ class GameView extends StatelessWidget {
       isHintSource: isHintSource,
       isHintTarget: isHintTarget,
       skinType: skinType,
+      tiltAngle: isPouringSource ? controller.pourTiltAngle.value : 0.0,
+      tiltOffset: isPouringSource ? controller.pourTiltOffset.value : Offset.zero,
+      drainAmount: drainAmount,
       fillAmount: fillAmount,
       fillColor: fillColor,
       isColorblindMode: controller.isColorblindMode.value,
       onTap: () => controller.onBottleTapped(index),
-    );
-  }
-
-  /// Renders the pouring bottle in a top-level Stack overlay to guarantee
-  /// it is always drawn in front of the target bottle and all other grid bottles.
-  Widget _buildPouringBottleOverlay(GameController controller, String skinType) {
-    final fromIdx = controller.pouringSourceIndex.value;
-    if (fromIdx == null) return const SizedBox.shrink();
-
-    final bottleKey = controller.getBottleKey(fromIdx);
-    final context = bottleKey.currentContext;
-    if (context == null) return const SizedBox.shrink();
-
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return const SizedBox.shrink();
-
-    final globalPos = renderBox.localToGlobal(Offset.zero);
-    final bottle = controller.bottles[fromIdx];
-    final drainAmount = controller.streamProgress.value * controller.pouringAmount.value;
-
-    return Positioned(
-      left: globalPos.dx,
-      top: globalPos.dy,
-      width: renderBox.size.width,
-      height: renderBox.size.height,
-      child: IgnorePointer(
-        child: BottleWidget(
-          bottle: bottle,
-          index: fromIdx,
-          isSelected: false,
-          skinType: skinType,
-          tiltAngle: controller.pourTiltAngle.value,
-          tiltOffset: controller.pourTiltOffset.value,
-          drainAmount: drainAmount,
-          isColorblindMode: controller.isColorblindMode.value,
-          onTap: () {},
-        ),
-      ),
     );
   }
 
