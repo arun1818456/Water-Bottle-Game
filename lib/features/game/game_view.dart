@@ -30,8 +30,6 @@ class GameView extends StatelessWidget {
       body: Obx(() {
         final currentSkin = storage.equippedBottleSkin.value;
         final currentBg = storage.equippedBackground.value;
-        final coins = storage.coins.value;
-        final currentLevel = controller.levelId.value;
         final difficultyText = controller.difficulty.value;
         final moveHistoryCount = controller.moveHistory.length;
         final extraBottleDisabled = controller.extraBottleDisabled;
@@ -47,8 +45,14 @@ class GameView extends StatelessWidget {
 
                 Column(
                   children: [
-                    // Top App Bar
-                    _buildTopBar(context, controller, coins, currentLevel, difficultyText),
+                    // Top App Bar with all Circular Action & Navigation Buttons
+                    _buildTopBar(
+                      context,
+                      controller,
+                      moveHistoryCount: moveHistoryCount,
+                      extraBottleDisabled: extraBottleDisabled,
+                      hintCount: hintCount,
+                    ),
 
                     const SizedBox(height: 8),
 
@@ -75,14 +79,6 @@ class GameView extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
-
-                    // Bottom Control Toolbar
-                    _buildBottomToolbar(
-                      controller,
-                      moveHistoryCount: moveHistoryCount,
-                      extraBottleDisabled: extraBottleDisabled,
-                      hintCount: hintCount,
                     ),
 
                     // Banner Ad at bottom for levels with 1 or 2 rows of bottles
@@ -265,235 +261,197 @@ class GameView extends StatelessWidget {
     }
   }
 
-  /// Modern Top Header Bar with Glass Capsule Level Display
+  /// Modern Top Header Bar containing all Circular Action & Navigation Buttons
   Widget _buildTopBar(
     BuildContext context,
-    GameController controller,
-    int coins,
-    int currentLevel,
-    String difficultyText,
-  ) {
+    GameController controller, {
+    required int moveHistoryCount,
+    required bool extraBottleDisabled,
+    required int hintCount,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Back Button
+          // Pause Menu Button (Left side)
           if (isTutorial)
-            const SizedBox(width: 42)
+            const SizedBox(width: 40)
           else
-            GestureDetector(
-              onTap: () => Get.back(),
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E2A52).withValues(alpha: 0.8),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF1E60A8),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
+            _buildCircularIconButton(
+              icon: Icons.pause_rounded,
+              iconColor: Colors.white,
+              onTap: () {
+                AudioService.to.playButtonClick();
+                HapticFeedbackHelper.selectionClick();
+                controller.openPauseMenu();
+              },
             ),
 
-          // Central Level Badge Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF14457F), Color(0xFF0A2952)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: const Color(0xFF00E5FF).withValues(alpha: 0.7),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF00E5FF).withValues(alpha: 0.25),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [
-                      Color(0xFF80E5FF),
-                      Color(0xFFFFFFFF),
-                      Color(0xFFFFD54F),
-                    ],
-                  ).createShader(bounds),
-                  child: Text(
-                    isTutorial ? 'TUTORIAL' : 'LEVEL $currentLevel',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    difficultyText.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF80D8FF),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Right side: Coins pill & Pause button
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF14457F), Color(0xFF0B2B54)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.6),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
+          // Action Circular Buttons (+ Bottle, Restart, Undo, Hint)
+          if (!isTutorial)
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    const Icon(
-                      Icons.monetization_on_rounded,
-                      color: Color(0xFFFFD700),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$coins',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isTutorial) ...[
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Pause Button
-                    GestureDetector(
-                      onTap: () => controller.openPauseMenu(),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0E2A52).withValues(alpha: 0.8),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF1E60A8),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.pause_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    // Colorblind Mode Toggle Button (In-memory toggle)
-                    GestureDetector(
+                    // Extra Bottle (+ Bottle)
+                    _buildCircularIconButton(
+                      icon: Icons.add_circle_outline_rounded,
+                      iconColor: const Color(0xFF00E5FF),
+                      badge: extraBottleDisabled ? null : 'Ad',
+                      badgeColor: const Color(0xFF00E5FF),
+                      disabled: extraBottleDisabled,
                       onTap: () {
                         AudioService.to.playButtonClick();
                         HapticFeedbackHelper.selectionClick();
-                        controller.toggleColorblindMode();
+                        controller.addExtraEmptyBottleWithAd();
                       },
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: controller.isColorblindMode.value
-                              ? const Color(0xFF00E5FF).withValues(alpha: 0.25)
-                              : const Color(0xFF0E2A52).withValues(alpha: 0.8),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: controller.isColorblindMode.value
-                                ? const Color(0xFF00E5FF)
-                                : const Color(0xFF1E60A8),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: controller.isColorblindMode.value
-                                  ? const Color(0xFF00E5FF).withValues(alpha: 0.4)
-                                  : const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          controller.isColorblindMode.value
-                              ? Icons.visibility_rounded
-                              : Icons.visibility_off_rounded,
-                          color: controller.isColorblindMode.value
-                              ? const Color(0xFF00E5FF)
-                              : Colors.white70,
-                          size: 17,
-                        ),
-                      ),
+                    ),
+
+                    // Restart
+                    _buildCircularIconButton(
+                      icon: Icons.refresh_rounded,
+                      iconColor: const Color(0xFFFFB300),
+                      onTap: () {
+                        AudioService.to.playButtonClick();
+                        HapticFeedbackHelper.selectionClick();
+                        controller.restartLevel();
+                      },
+                    ),
+
+                    // Undo
+                    _buildCircularIconButton(
+                      icon: Icons.undo_rounded,
+                      iconColor: const Color(0xFF7C4DFF),
+                      badge: moveHistoryCount > 0 ? '$moveHistoryCount' : null,
+                      badgeColor: const Color(0xFF7C4DFF),
+                      disabled: moveHistoryCount == 0,
+                      onTap: () {
+                        AudioService.to.playButtonClick();
+                        HapticFeedbackHelper.selectionClick();
+                        controller.undoMove();
+                      },
+                    ),
+
+                    // Hint
+                    _buildCircularIconButton(
+                      icon: Icons.lightbulb_outline_rounded,
+                      iconColor: const Color(0xFF00E676),
+                      badge: hintCount < 3 ? 'Free' : 'Ad',
+                      badgeColor: hintCount < 3 ? const Color(0xFF00E676) : const Color(0xFFFFB300),
+                      onTap: () {
+                        AudioService.to.playButtonClick();
+                        HapticFeedbackHelper.selectionClick();
+                        controller.requestHint();
+                      },
                     ),
                   ],
                 ),
-              ],
-            ],
+              ),
+            ),
+
+          // Right side: Eyes Toggle Button
+          if (isTutorial)
+            const SizedBox(width: 40)
+          else
+            _buildCircularIconButton(
+              icon: controller.isColorblindMode.value
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
+              iconColor: controller.isColorblindMode.value
+                  ? const Color(0xFF00E5FF)
+                  : Colors.white70,
+              isActive: controller.isColorblindMode.value,
+              onTap: () {
+                AudioService.to.playButtonClick();
+                HapticFeedbackHelper.selectionClick();
+                controller.toggleColorblindMode();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Universal Circular Glass Icon Button with optional badge
+  Widget _buildCircularIconButton({
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+    String? badge,
+    Color badgeColor = const Color(0xFF00E5FF),
+    bool disabled = false,
+    bool isActive = false,
+    double size = 40,
+    double iconSize = 20,
+  }) {
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: disabled
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : isActive
+                      ? iconColor.withValues(alpha: 0.28)
+                      : const Color(0xFF0E2A52).withValues(alpha: 0.85),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: disabled
+                    ? Colors.white12
+                    : isActive
+                        ? iconColor
+                        : iconColor.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+              boxShadow: !disabled
+                  ? [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: isActive ? 0.35 : 0.18),
+                        blurRadius: 8,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              icon,
+              color: disabled ? Colors.white24 : iconColor,
+              size: iconSize,
+            ),
           ),
+          if (badge != null && !disabled)
+            Positioned(
+              top: -3,
+              right: -3,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: badgeColor.withValues(alpha: 0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Text(
+                  badge,
+                  style: const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF001830),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -626,177 +584,7 @@ class GameView extends StatelessWidget {
     );
   }
 
-  /// Modern Floating Glass Bottom Toolbar
-  Widget _buildBottomToolbar(
-    GameController controller, {
-    required int moveHistoryCount,
-    required bool extraBottleDisabled,
-    required int hintCount,
-  }) {
-    if (isTutorial) return const SizedBox(height: 88);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF081C38).withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(
-          color: const Color(0xFF1E5898).withValues(alpha: 0.6),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0072FF).withValues(alpha: 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-          const BoxShadow(
-            color: Colors.black54,
-            blurRadius: 12,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          // Extra Bottle Powerup
-          _buildToolButton(
-            icon: Icons.add_circle_outline_rounded,
-            iconColor: const Color(0xFF00E5FF),
-            label: '+ Bottle',
-            badge: extraBottleDisabled ? null : 'Ad',
-            badgeColor: const Color(0xFF00E5FF),
-            onTap: () => controller.addExtraEmptyBottleWithAd(),
-            disabled: extraBottleDisabled,
-          ),
-
-          // Restart
-          _buildToolButton(
-            icon: Icons.refresh_rounded,
-            iconColor: const Color(0xFFFFB300),
-            label: 'Restart',
-            onTap: () => controller.restartLevel(),
-          ),
-
-          // Undo
-          _buildToolButton(
-            icon: Icons.undo_rounded,
-            iconColor: const Color(0xFF7C4DFF),
-            label: 'Undo',
-            badge: moveHistoryCount > 0 ? '$moveHistoryCount' : null,
-            badgeColor: const Color(0xFF7C4DFF),
-            onTap: () => controller.undoMove(),
-            disabled: moveHistoryCount == 0,
-          ),
-
-          // Hint
-          _buildToolButton(
-            icon: Icons.lightbulb_outline_rounded,
-            iconColor: const Color(0xFF00E676),
-            label: 'Hint',
-            badge: hintCount < 3 ? 'Free' : 'Ad',
-            badgeColor: hintCount < 3 ? const Color(0xFF00E676) : const Color(0xFFFFB300),
-            onTap: () => controller.requestHint(),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
-  }
-
-  /// Modern Interactive Tool Button
-  Widget _buildToolButton({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    String? badge,
-    Color badgeColor = const Color(0xFF00E5FF),
-    required VoidCallback onTap,
-    bool disabled = false,
-  }) {
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: disabled
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: disabled
-                          ? Colors.white12
-                          : iconColor.withValues(alpha: 0.4),
-                      width: 1.2,
-                    ),
-                    boxShadow: !disabled
-                        ? [
-                            BoxShadow(
-                              color: iconColor.withValues(alpha: 0.2),
-                              blurRadius: 8,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Icon(
-                    icon,
-                    color: disabled ? Colors.white24 : iconColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: disabled ? Colors.white24 : Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (badge != null)
-            Positioned(
-              top: -2,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: badgeColor.withValues(alpha: 0.4),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF002244),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   /// Tutorial Guidance View
   Widget _buildTutorialGuide(GameController controller) {
