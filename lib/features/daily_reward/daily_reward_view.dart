@@ -41,7 +41,6 @@ class DailyRewardView extends StatelessWidget {
           ),
 
           SafeArea(
-            bottom: false,
             child: Obx(() {
               // Read reactive values inside this single top-level Obx
               final streak = controller.storage.dailyStreak.value;

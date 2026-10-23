@@ -38,7 +38,6 @@ class GameView extends StatelessWidget {
         return Container(
           decoration: _buildBackgroundDecoration(currentBg),
           child: SafeArea(
-            bottom: false,
             child: Stack(
               key: controller.gameStackKey,
               children: [

@@ -24,7 +24,6 @@ class LeaderboardView extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          bottom: false,
           child: Column(
             children: [
               // 1. Top Bar

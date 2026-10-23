@@ -42,7 +42,6 @@ class SettingsView extends StatelessWidget {
           ),
 
           SafeArea(
-            bottom: false,
             child: Obx(() {
               // Reactive values observed by this top-level Obx
               final soundEnabled = storage.soundEnabled.value;

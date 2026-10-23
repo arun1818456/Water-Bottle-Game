@@ -24,7 +24,6 @@ class HomeView extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          bottom: false,
           child: Column(
             children: [
               // Top Bar: Coins & Streak

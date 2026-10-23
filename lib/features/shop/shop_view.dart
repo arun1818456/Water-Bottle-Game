@@ -43,7 +43,6 @@ class ShopView extends StatelessWidget {
           ),
 
           SafeArea(
-            bottom: false,
             child: Obx(() {
               final coins = controller.storage.coins.value;
               final selectedTab = controller.selectedTab.value;

@@ -41,7 +41,6 @@ class LevelSelectView extends StatelessWidget {
           ),
 
           SafeArea(
-            bottom: false,
             child: Obx(() {
               final coins = controller.storage.coins.value;
               final unlockedLevel = controller.storage.unlockedLevel.value;
