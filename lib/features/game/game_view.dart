@@ -40,6 +40,7 @@ class GameView extends StatelessWidget {
           child: SafeArea(
             bottom: false,
             child: Stack(
+              key: controller.gameStackKey,
               children: [
                 // Ambient stage light aura behind bottles
                 _buildAmbientStageLighting(currentBg),
@@ -57,25 +58,30 @@ class GameView extends StatelessWidget {
 
                     const SizedBox(height: 8),
 
-                    // Middle Bottles Board with floating glass stage platform
+                    // Middle Bottles Board with floating glass stage platform (positioned higher & fully responsive)
                     Expanded(
-                      child: Center(
+                      child: Align(
+                        alignment: const Alignment(0.0, -0.35),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Glowing frosted glass pedestal platform beneath the bottles
-                                _buildBoardPedestal(currentBg),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.topCenter,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Glowing frosted glass pedestal platform beneath the bottles
+                                  _buildBoardPedestal(currentBg),
 
-                                // Bottles Grid
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-                                  child: _buildBottlesGrid(controller, currentSkin),
-                                ),
-                              ],
+                                  // Bottles Grid
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                                    child: _buildBottlesGrid(controller, currentSkin),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -94,6 +100,10 @@ class GameView extends StatelessWidget {
                   colorId: controller.streamColor.value,
                   streamProgress: controller.streamProgress.value,
                 ),
+
+                // Active Pouring Bottle Overlay (ALWAYS ON TOP OF ALL BOTTLES)
+                if (controller.isPouring.value && controller.pouringSourceIndex.value != null)
+                  _buildPouringBottleOverlay(controller, currentSkin),
 
                 // Victory Confetti Layer
                 if (controller.showCelebration.value)
@@ -487,9 +497,10 @@ class GameView extends StatelessWidget {
       case 10: return [3, 4, 3];
       case 11: return [4, 3, 4];
       case 12: return [4, 4, 4];
-      case 13: return [4, 5, 4];
-      case 14: return [5, 5, 4];
-      case 15: return [5, 5, 5];
+      case 13: return [4, 3, 3, 3];
+      case 14: return [4, 4, 3, 3];
+      case 15: return [4, 4, 4, 3];
+      case 16: return [4, 4, 4, 4];
       default:
         int rows = (count / 4).ceil();
         if (rows <= 0) return [];
@@ -557,9 +568,26 @@ class GameView extends StatelessWidget {
     final isPouringSource = controller.pouringSourceIndex.value == index;
     final isPouringTarget = controller.pouringTargetIndex.value == index;
 
-    final drainAmount = isPouringSource
-        ? controller.streamProgress.value * controller.pouringAmount.value
-        : 0.0;
+    if (isPouringSource) {
+      // Hide source bottle in grid during pour because it is painted
+      // in front via _buildPouringBottleOverlay to guarantee Z-index!
+      return Visibility(
+        visible: false,
+        maintainSize: true,
+        maintainAnimation: true,
+        maintainState: true,
+        child: BottleWidget(
+          key: controller.getBottleKey(index),
+          bottle: bottle,
+          index: index,
+          isSelected: false,
+          skinType: skinType,
+          isColorblindMode: controller.isColorblindMode.value,
+          onTap: () {},
+        ),
+      );
+    }
+
     final fillAmount = isPouringTarget
         ? controller.streamProgress.value * controller.pouringAmount.value
         : 0.0;
@@ -573,13 +601,52 @@ class GameView extends StatelessWidget {
       isHintSource: isHintSource,
       isHintTarget: isHintTarget,
       skinType: skinType,
-      tiltAngle: isPouringSource ? controller.pourTiltAngle.value : 0.0,
-      tiltOffset: isPouringSource ? controller.pourTiltOffset.value : Offset.zero,
-      drainAmount: drainAmount,
       fillAmount: fillAmount,
       fillColor: fillColor,
       isColorblindMode: controller.isColorblindMode.value,
       onTap: () => controller.onBottleTapped(index),
+    );
+  }
+
+  /// Renders the pouring bottle in a top-level Stack overlay to guarantee
+  /// it is always drawn in front of the target bottle and all other grid bottles.
+  Widget _buildPouringBottleOverlay(GameController controller, String skinType) {
+    final fromIdx = controller.pouringSourceIndex.value;
+    if (fromIdx == null) return const SizedBox.shrink();
+
+    final bottleKey = controller.getBottleKey(fromIdx);
+    final context = bottleKey.currentContext;
+    final stackContext = controller.gameStackKey.currentContext;
+    if (context == null || stackContext == null) return const SizedBox.shrink();
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final stackBox = stackContext.findRenderObject() as RenderBox?;
+    if (renderBox == null || stackBox == null) return const SizedBox.shrink();
+
+    final globalPos = renderBox.localToGlobal(Offset.zero);
+    final localPos = stackBox.globalToLocal(globalPos);
+
+    final bottle = controller.bottles[fromIdx];
+    final drainAmount = controller.streamProgress.value * controller.pouringAmount.value;
+
+    return Positioned(
+      left: localPos.dx,
+      top: localPos.dy,
+      width: renderBox.size.width,
+      height: renderBox.size.height,
+      child: IgnorePointer(
+        child: BottleWidget(
+          bottle: bottle,
+          index: fromIdx,
+          isSelected: false,
+          skinType: skinType,
+          tiltAngle: controller.pourTiltAngle.value,
+          tiltOffset: controller.pourTiltOffset.value,
+          drainAmount: drainAmount,
+          isColorblindMode: controller.isColorblindMode.value,
+          onTap: () {},
+        ),
+      ),
     );
   }
 

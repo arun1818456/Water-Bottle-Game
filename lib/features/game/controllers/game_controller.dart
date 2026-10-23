@@ -65,6 +65,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   // 0 = choose the filled bottle, 1 = choose the empty bottle.
   final RxInt tutorialStep = 0.obs;
 
+  // Key for stack overlay box to compute pixel-perfect relative pour coordinates
+  final GlobalKey gameStackKey = GlobalKey();
+
   // Keys for bottle render boxes to calculate precise pour coordinates
   final Map<int, GlobalKey> bottleKeys = {};
 
@@ -235,13 +238,13 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     final sourceHiddenBefore = Set<int>.from(source.hiddenIndices);
     final targetHiddenBefore = Set<int>.from(target.hiddenIndices);
 
-    // Calculate source and target coordinates for stream
-    _calculateStreamCoordinates(fromIdx, toIdx);
+    // Calculate source and target coordinates for stream and pour direction
+    final isTargetLeft = _calculateStreamCoordinates(fromIdx, toIdx);
     streamColor.value = colorToPour;
     pouringAmount.value = amountToPour;
 
-    // Determine tilt direction (tilt left if target is to the left, else right)
-    final tiltDirection = (toIdx < fromIdx) ? -1.0 : 1.0;
+    // Determine tilt direction based on physical position of target relative to source
+    final tiltDirection = isTargetLeft ? -1.0 : 1.0;
     final targetAngle = tiltDirection * 1.1; // ~63 degrees tilt
 
     AudioService.to.playPourSound();
@@ -315,56 +318,61 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     _checkGameStateAfterMove();
   }
 
-  void _calculateStreamCoordinates(int fromIdx, int toIdx) {
+  bool _calculateStreamCoordinates(int fromIdx, int toIdx) {
     try {
+      final stackContext = gameStackKey.currentContext;
       final fromContext = bottleKeys[fromIdx]?.currentContext;
       final toContext = bottleKeys[toIdx]?.currentContext;
 
-      if (fromContext != null && toContext != null) {
+      if (stackContext != null && fromContext != null && toContext != null) {
+        final stackBox = stackContext.findRenderObject() as RenderBox?;
         final fromBox = fromContext.findRenderObject() as RenderBox?;
         final toBox = toContext.findRenderObject() as RenderBox?;
 
-        if (fromBox != null && toBox != null) {
-          final fromPos = fromBox.localToGlobal(Offset.zero);
-          final toPos = toBox.localToGlobal(Offset.zero);
+        if (stackBox != null && fromBox != null && toBox != null) {
+          final fromPos = stackBox.globalToLocal(fromBox.localToGlobal(Offset.zero));
+          final toPos = stackBox.globalToLocal(toBox.localToGlobal(Offset.zero));
+          final bottleWidth = toBox.size.width; // 58.0
 
-          final isTargetLeft = toIdx < fromIdx;
+          // Determine if target bottle is physically to the left of source bottle on screen
+          final isTargetLeft = toPos.dx < fromPos.dx;
 
-          // Target top center for the bottle mouth
-          final targetTopCenter = Offset(
-            toPos.dx + toBox.size.width / 2,
-            toPos.dy - 30, // move slightly above the target bottle
-          );
+          // Target mouth top-center coordinate
+          final targetMouthX = toPos.dx + bottleWidth / 2;
+          final targetMouthY = toPos.dy;
 
-          final sourceTopCenter = Offset(
-            fromPos.dx + fromBox.size.width / 2,
-            fromPos.dy,
-          );
+          // Spout target position: pouring bottle hovers HIGHER UP in the air above target bottle (28px above rim)
+          final spoutTargetX = targetMouthX + (isTargetLeft ? 14.0 : -14.0);
+          final spoutTargetY = targetMouthY - 28.0;
 
-          // We want the source bottle's mouth to reach targetTopCenter
-          final dx = targetTopCenter.dx - sourceTopCenter.dx;
-          final offsetDx = dx + (isTargetLeft ? 20 : -20);
-          final offsetDy = targetTopCenter.dy - sourceTopCenter.dy;
+          // Source bottle pivot (top center before translation)
+          final sourcePivotX = fromPos.dx + bottleWidth / 2;
+          final sourcePivotY = fromPos.dy;
+
+          // When tilted by ~57 deg (1.0 rad), pouring lip offsets relative to pivot:
+          final lipOffsetDx = isTargetLeft ? -6.5 : 6.5;
+          final lipOffsetDy = 12.5;
+
+          final offsetDx = spoutTargetX - sourcePivotX - lipOffsetDx;
+          final offsetDy = spoutTargetY - sourcePivotY - lipOffsetDy;
 
           _pourTargetOffset = Offset(offsetDx, offsetDy);
 
-          streamStart.value = Offset(
-            targetTopCenter.dx + (isTargetLeft ? 15 : -15),
-            targetTopCenter.dy -10,
-          );
-          streamEnd.value = Offset(
-            toPos.dx + toBox.size.width / 2,
-            toPos.dy + 30, // Target mouth se approx 2cm upar
-          );
-          return;
+          // Stream starts directly at the higher pouring lip (spout) of tilted bottle
+          streamStart.value = Offset(spoutTargetX, spoutTargetY);
+
+          // Stream ends inside target bottle opening
+          streamEnd.value = Offset(targetMouthX, targetMouthY + 15.0);
+          return isTargetLeft;
         }
       }
     } catch (_) {}
 
-    // Fallback coordinates if render box is unavailable
-    _pourTargetOffset = const Offset(0, -50);
+    final isTargetLeft = toIdx < fromIdx;
+    _pourTargetOffset = Offset(isTargetLeft ? -40.0 : 40.0, -28.0);
     streamStart.value = const Offset(150, 200);
-    streamEnd.value = const Offset(250, 300);
+    streamEnd.value = const Offset(150, 230);
+    return isTargetLeft;
   }
 
   void _checkGameStateAfterMove() {
