@@ -72,6 +72,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   final Map<int, GlobalKey> bottleKeys = {};
 
   Offset _pourTargetOffset = Offset.zero;
+  double _targetMouthX = 0.0;
+  double _targetMouthY = 0.0;
 
   late LevelData _originalLevelData;
   late final AnimationController _pourAnimationController;
@@ -275,7 +277,16 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       pourTiltOffset.value = _pourTargetOffset * curvedPhase;
 
       // Stream runs from 0.2 to 0.8
-      streamProgress.value = ((t - 0.2) / 0.6).clamp(0.0, 1.0);
+      final progress = ((t - 0.2) / 0.6).clamp(0.0, 1.0);
+      streamProgress.value = progress;
+
+      // Update streamEnd dynamically so liquid stream flows deep into bottle to current surface level
+      final capacity = target.capacity > 0 ? target.capacity : 4;
+      final segmentHeight = 117.0 / capacity;
+      final currentVol = target.layers.length.toDouble() + (progress * amountToPour);
+      final liquidYLocal = (147.0 - (currentVol * segmentHeight)).clamp(35.0, 135.0);
+
+      streamEnd.value = Offset(_targetMouthX, _targetMouthY + liquidYLocal);
     }
     _pourAnimationController.addListener(animationListener);
 
@@ -338,12 +349,12 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           final isTargetLeft = toPos.dx < fromPos.dx;
 
           // Target mouth top-center coordinate
-          final targetMouthX = toPos.dx + bottleWidth / 2;
-          final targetMouthY = toPos.dy;
+          _targetMouthX = toPos.dx + bottleWidth / 2;
+          _targetMouthY = toPos.dy;
 
           // Spout target position: pouring bottle hovers HIGHER UP in the air above target bottle (28px above rim)
-          final spoutTargetX = targetMouthX + (isTargetLeft ? 14.0 : -14.0);
-          final spoutTargetY = targetMouthY - 28.0;
+          final spoutTargetX = _targetMouthX + (isTargetLeft ? 14.0 : -14.0);
+          final spoutTargetY = _targetMouthY - 28.0;
 
           // Source bottle pivot (top center before translation)
           final sourcePivotX = fromPos.dx + bottleWidth / 2;
@@ -361,8 +372,14 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           // Stream starts directly at the higher pouring lip (spout) of tilted bottle
           streamStart.value = Offset(spoutTargetX, spoutTargetY);
 
-          // Stream ends inside target bottle opening
-          streamEnd.value = Offset(targetMouthX, targetMouthY + 15.0);
+          // Calculate initial streamEnd landing at current liquid surface inside target bottle body
+          final targetBottle = bottles[toIdx];
+          final capacity = targetBottle.capacity > 0 ? targetBottle.capacity : 4;
+          final segmentHeight = 117.0 / capacity;
+          final initialVol = targetBottle.layers.length.toDouble();
+          final liquidYLocal = (147.0 - (initialVol * segmentHeight)).clamp(35.0, 135.0);
+
+          streamEnd.value = Offset(_targetMouthX, _targetMouthY + liquidYLocal);
           return isTargetLeft;
         }
       }
@@ -370,8 +387,10 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     final isTargetLeft = toIdx < fromIdx;
     _pourTargetOffset = Offset(isTargetLeft ? -40.0 : 40.0, -28.0);
-    streamStart.value = const Offset(150, 200);
-    streamEnd.value = const Offset(150, 230);
+    _targetMouthX = 150.0;
+    _targetMouthY = 200.0;
+    streamStart.value = const Offset(150, 172);
+    streamEnd.value = const Offset(150, 280);
     return isTargetLeft;
   }
 
