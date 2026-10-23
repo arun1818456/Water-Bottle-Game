@@ -276,13 +276,12 @@ class BottlePainter extends CustomPainter {
             text: TextSpan(
               text: '?',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: max(14.0, (maxY - minY) * 0.58),
-                fontWeight: FontWeight.w900,
+                color: Colors.white.withAlpha(220),
+                fontSize: max(14.0, (maxY - minY) * 0.55),
+                fontWeight: FontWeight.w800,
                 shadows: [
-                  const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
-                  Shadow(color: const Color(0xFF00E5FF), blurRadius: 10 + pulse1 * 6),
-                  Shadow(color: const Color(0xFFD500F9), blurRadius: 14 + pulse2 * 6),
+                  const Shadow(color: Colors.black45, blurRadius: 3, offset: Offset(0, 1)),
+                  Shadow(color: const Color(0xFF00E5FF).withAlpha(150), blurRadius: 6),
                 ],
               ),
             ),
@@ -329,12 +328,11 @@ class BottlePainter extends CustomPainter {
             text: TextSpan(
               text: symbol,
               style: TextStyle(
-                color: Colors.white.withAlpha(240),
-                fontSize: max(12.0, (maxY - minY) * 0.52),
+                color: Colors.white.withAlpha(220),
+                fontSize: max(12.0, (maxY - minY) * 0.50),
                 fontWeight: FontWeight.bold,
                 shadows: const [
-                  Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
-                  Shadow(color: Colors.black54, blurRadius: 2),
+                  Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
                 ],
               ),
             ),

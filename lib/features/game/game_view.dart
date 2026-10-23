@@ -102,7 +102,7 @@ class GameView extends StatelessWidget {
                 ),
 
                 // Active Pouring Bottle Overlay (ALWAYS ON TOP OF ALL BOTTLES)
-                if (controller.isPouring.value && controller.pouringSourceIndex.value != null)
+                if (controller.isPouring.value && controller.pouringSourceIndex.value >= 0)
                   _buildPouringBottleOverlay(controller, currentSkin),
 
                 // Victory Confetti Layer
@@ -386,7 +386,7 @@ class GameView extends StatelessWidget {
     );
   }
 
-  /// Universal Circular Glass Icon Button with optional badge
+  /// Universal Circular Glass Icon Button with optional badge (softer & faded style)
   Widget _buildCircularIconButton({
     required IconData icon,
     required Color iconColor,
@@ -412,28 +412,28 @@ class GameView extends StatelessWidget {
                   ? Colors.white.withValues(alpha: 0.05)
                   : isActive
                       ? iconColor.withValues(alpha: 0.28)
-                      : const Color(0xFF0E2A52).withValues(alpha: 0.85),
+                      : const Color(0xFF0E2A52).withValues(alpha: 0.68),
               shape: BoxShape.circle,
               border: Border.all(
                 color: disabled
                     ? Colors.white12
                     : isActive
-                        ? iconColor
-                        : iconColor.withValues(alpha: 0.5),
-                width: 1.5,
+                        ? iconColor.withValues(alpha: 0.85)
+                        : iconColor.withValues(alpha: 0.42),
+                width: 1.3,
               ),
               boxShadow: !disabled
                   ? [
                       BoxShadow(
-                        color: iconColor.withValues(alpha: isActive ? 0.35 : 0.18),
-                        blurRadius: 8,
+                        color: iconColor.withValues(alpha: isActive ? 0.25 : 0.12),
+                        blurRadius: 7,
                       ),
                     ]
                   : null,
             ),
             child: Icon(
               icon,
-              color: disabled ? Colors.white24 : iconColor,
+              color: disabled ? Colors.white.withValues(alpha: 0.22) : iconColor,
               size: iconSize,
             ),
           ),
@@ -612,7 +612,7 @@ class GameView extends StatelessWidget {
   /// it is always drawn in front of the target bottle and all other grid bottles.
   Widget _buildPouringBottleOverlay(GameController controller, String skinType) {
     final fromIdx = controller.pouringSourceIndex.value;
-    if (fromIdx == null) return const SizedBox.shrink();
+    if (fromIdx < 0) return const SizedBox.shrink();
 
     final bottleKey = controller.getBottleKey(fromIdx);
     final context = bottleKey.currentContext;
