@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/services/firebase_service.dart';
 import '../../core/services/storage_service.dart';
 
 class LeaderboardUser {
@@ -28,22 +30,66 @@ class LeaderboardController extends GetxController {
   final RxList<LeaderboardUser> leaderboardUsers = <LeaderboardUser>[].obs;
   final RxInt currentUserRank = 12.obs;
   final RxInt userTotalStars = 0.obs;
+  final RxBool isLoading = false.obs;
+
+  final RxBool isFirebaseActive = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-    _calculateAndBuildLeaderboard();
+    _loadLeaderboardData();
   }
 
-  void _calculateAndBuildLeaderboard() {
-    // Calculate current user's total stars
-    int starsFromMap = storage.levelStars.values.fold(0, (sum, s) => sum + s);
-    if (starsFromMap == 0 && storage.completedCount.value > 0) {
-      starsFromMap = storage.completedCount.value * 3;
-    }
-    userTotalStars.value = starsFromMap;
+  Future<void> _loadLeaderboardData() async {
+    isLoading.value = true;
+    userTotalStars.value = storage.totalStarsCollected;
 
+    final firebaseAvailable = Get.isRegistered<FirebaseService>() && FirebaseService.to.isInitialized;
+    isFirebaseActive.value = firebaseAvailable;
+
+    if (firebaseAvailable) {
+      try {
+        await FirebaseService.to.syncUserData();
+        final onlineUsers = await FirebaseService.to.fetchLeaderboard(limit: 50);
+
+        if (onlineUsers.isNotEmpty) {
+          _setOnlineLeaderboard(onlineUsers);
+          isLoading.value = false;
+          return;
+        }
+      } catch (e) {
+        debugPrint('LeaderboardController: Online fetch failed: $e');
+      }
+    }
+
+    // Fallback to local baseline if offline or Firebase not configured yet
+    _buildLocalLeaderboard();
+    isLoading.value = false;
+  }
+
+  void _setOnlineLeaderboard(List<LeaderboardUser> onlineUsers) {
+    int userRank = 1;
+    bool foundCurrent = false;
+
+    for (var i = 0; i < onlineUsers.length; i++) {
+      if (onlineUsers[i].isCurrentUser) {
+        foundCurrent = true;
+        userRank = onlineUsers[i].rank;
+        break;
+      }
+    }
+
+    if (!foundCurrent) {
+      userRank = onlineUsers.length + 1;
+    }
+
+    leaderboardUsers.assignAll(onlineUsers);
+    currentUserRank.value = userRank;
+  }
+
+  void _buildLocalLeaderboard() {
     final currentUserLevel = storage.unlockedLevel.value;
+    final currentUserName = storage.getOrCreateUserName();
 
     // Standard World Dummy Players
     final rawWorldPlayers = [
@@ -66,7 +112,7 @@ class LeaderboardController extends GetxController {
 
     // Add Current User
     rawWorldPlayers.add(_TempUser(
-      'You (Player)',
+      '$currentUserName (You)',
       '🎮',
       '🇮🇳',
       userTotalStars.value,
@@ -110,6 +156,10 @@ class LeaderboardController extends GetxController {
   void onBackPressed() {
     AudioService.to.playButtonClick();
     Get.back();
+  }
+
+  void refreshLeaderboard() {
+    _loadLeaderboardData();
   }
 }
 

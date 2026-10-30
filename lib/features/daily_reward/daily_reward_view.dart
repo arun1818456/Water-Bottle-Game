@@ -7,12 +7,26 @@ import '../../core/constants/app_images.dart';
 import 'daily_reward_controller.dart';
 
 /// Modern 7-Day Daily Reward and Streak screen
-class DailyRewardView extends StatelessWidget {
+class DailyRewardView extends StatefulWidget {
   const DailyRewardView({super.key});
 
   @override
+  State<DailyRewardView> createState() => _DailyRewardViewState();
+}
+
+class _DailyRewardViewState extends State<DailyRewardView> {
+  late final DailyRewardController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<DailyRewardController>()
+        ? Get.find<DailyRewardController>()
+        : Get.put(DailyRewardController());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(DailyRewardController());
 
     return Scaffold(
       body: Stack(

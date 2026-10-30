@@ -24,13 +24,13 @@ class LevelManager {
         _levelCache[levelId] = levelData;
         return levelData;
       } catch (e) {
-        // Fallback to procedural generation if asset fails
+        // Fallback gracefully to procedural generation if level asset is unavailable or fails to parse
         final procedural = ProceduralLevelGenerator.generateLevel(levelId);
         _levelCache[levelId] = procedural;
         return procedural;
       }
     } else {
-      // Procedural generation for infinite levels
+      // Procedural generation for infinite levels beyond handcrafted range
       final procedural = ProceduralLevelGenerator.generateLevel(levelId);
       _levelCache[levelId] = procedural;
       return procedural;

@@ -4,15 +4,31 @@ import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_images.dart';
+import '../../core/services/audio_service.dart';
+import '../../core/widgets/profile_auth_dialog.dart';
 import 'settings_controller.dart';
 
 /// Modern High-Aesthetic Settings screen
-class SettingsView extends StatelessWidget {
+class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
 
   @override
+  State<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends State<SettingsView> {
+  late final SettingsController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<SettingsController>()
+        ? Get.find<SettingsController>()
+        : Get.put(SettingsController());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(SettingsController());
     final storage = controller.storage;
 
     return Scaffold(
@@ -62,6 +78,28 @@ class SettingsView extends StatelessWidget {
                       children: [
                         // App Brand Card
                         _buildBrandHeader(version),
+
+                        const SizedBox(height: 18),
+
+                        // Section 0: Account & Profile
+                        _buildSectionLabel('ACCOUNT & PROFILE'),
+                        const SizedBox(height: 8),
+                        _buildCardContainer([
+                          _buildNavActionRow(
+                            icon: Icons.account_circle_rounded,
+                            iconColor: const Color(0xFFFFD700),
+                            title: storage.getOrCreateUserName(),
+                            subtitle: storage.userEmail.value.isNotEmpty
+                                ? storage.userEmail.value
+                                : 'Guest Account (Tap to Edit Name / Login)',
+                            onTap: () {
+                              AudioService.to.playButtonClick();
+                              Get.dialog(const ProfileAuthDialog()).then((_) {
+                                setState(() {});
+                              });
+                            },
+                          ),
+                        ]),
 
                         const SizedBox(height: 18),
 

@@ -7,12 +7,26 @@ import '../../core/constants/app_images.dart';
 import 'level_controller.dart';
 
 /// Modern High-Aesthetic Level Select Screen
-class LevelSelectView extends StatelessWidget {
+class LevelSelectView extends StatefulWidget {
   const LevelSelectView({super.key});
 
   @override
+  State<LevelSelectView> createState() => _LevelSelectViewState();
+}
+
+class _LevelSelectViewState extends State<LevelSelectView> {
+  late final LevelController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<LevelController>()
+        ? Get.find<LevelController>()
+        : Get.put(LevelController());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LevelController());
 
     return Scaffold(
       body: Stack(

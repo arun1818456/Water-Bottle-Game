@@ -7,12 +7,26 @@ import 'home_controller.dart';
 import 'widgets/interactive_water_drop.dart';
 
 /// Main Menu Screen
-class HomeView extends StatelessWidget {
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
   @override
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  late final HomeController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<HomeController>()
+        ? Get.find<HomeController>()
+        : Get.put(HomeController());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(HomeController());
     final storage = controller.storage;
 
     return Scaffold(
@@ -281,63 +295,64 @@ class HomeView extends StatelessWidget {
                             ),
                   ),
                   Spacer(),
-                  // Align(
-                  //   alignment: Alignment.topRight,
-                  //   child: GestureDetector(
-                  //     onTap: controller.onLeaderboardPressed,
-                  //     child: Container(
-                  //       padding: const EdgeInsets.symmetric(
-                  //         horizontal: 10,
-                  //         vertical: 5,
-                  //       ),
-                  //       decoration: BoxDecoration(
-                  //         gradient: const LinearGradient(
-                  //           colors: [Color(0xFF8E24AA), Color(0xFF4A148C)],
-                  //           begin: Alignment.topLeft,
-                  //           end: Alignment.bottomRight,
-                  //         ),
-                  //         border: Border.all(
-                  //           color: const Color(0xFFE040FB),
-                  //           width: 1.5,
-                  //         ),
-                  //         borderRadius: BorderRadius.circular(30),
-                  //         boxShadow: [
-                  //           BoxShadow(
-                  //             color: const Color(
-                  //               0xFFE040FB,
-                  //             ).withValues(alpha: 0.3),
-                  //             blurRadius: 8,
-                  //           ),
-                  //         ],
-                  //       ),
-                  //       child: const Row(
-                  //         mainAxisSize: MainAxisSize.min,
-                  //         children: [
-                  //           Icon(
-                  //             Icons.emoji_events_rounded,
-                  //             color: Color(0xFFFFD700),
-                  //             size: 16,
-                  //           ),
-                  //           SizedBox(width: 4),
-                  //           Text(
-                  //             'Leaderboard',
-                  //             style: TextStyle(
-                  //               fontSize: 10,
-                  //               fontWeight: FontWeight.bold,
-                  //               color: Colors.white,
-                  //             ),
-                  //           ),
-                  //           SizedBox(width: 2),
-                  //           Icon(
-                  //             Icons.chevron_right_rounded,
-                  //             color: Color(0xFFE040FB),
-                  //             size: 16,
-                  //           ),
-                  //         ],
-                  //       ),
-                  //     ),
-                  //   ),
-                  // ),
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: GestureDetector(
+                      onTap: controller.onLeaderboardPressed,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12, top: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8E24AA), Color(0xFF4A148C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: const Color(0xFFE040FB),
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFE040FB,
+                              ).withValues(alpha: 0.35),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.emoji_events_rounded,
+                              color: Color(0xFFFFD700),
+                              size: 16,
+                            ),
+                            SizedBox(width: 5),
+                            Text(
+                              'Leaderboard',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Color(0xFFE040FB),
+                              size: 16,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
 

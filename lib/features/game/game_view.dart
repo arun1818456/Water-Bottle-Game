@@ -11,19 +11,34 @@ import 'widgets/bottle_widget.dart';
 import 'widgets/celebration_overlay.dart';
 import 'widgets/pour_stream_overlay.dart';
 
-class GameView extends StatelessWidget {
+class GameView extends StatefulWidget {
   final int? levelId;
   final bool isTutorial;
 
   const GameView({super.key, this.levelId, this.isTutorial = false});
 
   @override
-  Widget build(BuildContext context) {
-    final effectiveLevelId = levelId ?? StorageService.to.currentLevel.value;
-    final controller = Get.put(GameController(
+  State<GameView> createState() => _GameViewState();
+}
+
+class _GameViewState extends State<GameView> {
+  late final GameController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final effectiveLevelId = widget.levelId ?? StorageService.to.currentLevel.value;
+    if (Get.isRegistered<GameController>()) {
+      Get.delete<GameController>();
+    }
+    controller = Get.put(GameController(
       initialLevelId: effectiveLevelId,
-      isTutorial: isTutorial,
+      isTutorial: widget.isTutorial,
     ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final storage = StorageService.to;
 
     return Scaffold(
@@ -112,7 +127,7 @@ class GameView extends StatelessWidget {
                 if (controller.showDifficultySplash.value)
                   _buildDifficultySplash(difficultyText),
 
-                if (isTutorial)
+                if (widget.isTutorial)
                   _buildTutorialGuide(controller),
               ],
             ),
@@ -285,7 +300,7 @@ class GameView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Pause Menu Button (Left side)
-          if (isTutorial)
+          if (widget.isTutorial)
             const SizedBox(width: 40)
           else
             _buildCircularIconButton(
@@ -299,7 +314,7 @@ class GameView extends StatelessWidget {
             ),
 
           // Action Circular Buttons (+ Bottle, Restart, Undo, Hint)
-          if (!isTutorial)
+          if (!widget.isTutorial)
             Flexible(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -363,7 +378,7 @@ class GameView extends StatelessWidget {
             ),
 
           // Right side: Eyes Toggle Button
-          if (isTutorial)
+          if (widget.isTutorial)
             const SizedBox(width: 40)
           else
             _buildCircularIconButton(
@@ -513,7 +528,7 @@ class GameView extends StatelessWidget {
   Widget _buildBottlesGrid(GameController controller, String skinType) {
     final bottleCount = controller.bottles.length;
 
-    if (isTutorial) {
+    if (widget.isTutorial) {
       return Wrap(
         alignment: WrapAlignment.center,
         spacing: 48,

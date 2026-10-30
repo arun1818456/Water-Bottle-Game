@@ -1,14 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/audio_service.dart';
+import '../../core/widgets/profile_auth_dialog.dart';
 import 'leaderboard_controller.dart';
 
-class LeaderboardView extends StatelessWidget {
+class LeaderboardView extends StatefulWidget {
   const LeaderboardView({super.key});
 
   @override
+  State<LeaderboardView> createState() => _LeaderboardViewState();
+}
+
+class _LeaderboardViewState extends State<LeaderboardView> {
+  late final LeaderboardController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<LeaderboardController>()
+        ? Get.find<LeaderboardController>()
+        : Get.put(LeaderboardController());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LeaderboardController());
 
     return Scaffold(
       body: Container(
@@ -29,7 +45,35 @@ class LeaderboardView extends StatelessWidget {
               // 1. Top Bar
               _buildTopBar(context, controller),
 
-              const SizedBox(height: 12),
+              Obx(() {
+                if (!controller.isFirebaseActive.value) {
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF9800).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFF9800), width: 1),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.cloud_off_rounded, color: Color(0xFFFFB300), size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Showing Offline Demo Ranks. Add google-services.json for live Firebase global players.',
+                            style: TextStyle(fontSize: 10, color: Color(0xFFFFE082), fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+
+              const SizedBox(height: 8),
 
               // 2. Main Content
               Expanded(
@@ -169,7 +213,45 @@ class LeaderboardView extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 42),
+          // Profile & Login Action Button
+          GestureDetector(
+            onTap: () {
+              AudioService.to.playButtonClick();
+              Get.dialog(const ProfileAuthDialog()).then((_) {
+                controller.refreshLeaderboard();
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00E5FF), Color(0xFF0072FF)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Profile',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

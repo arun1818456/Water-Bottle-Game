@@ -9,12 +9,26 @@ import '../game/widgets/bottle_painter.dart';
 import 'shop_controller.dart';
 
 /// Modern High-Aesthetic Cosmetic Shop View
-class ShopView extends StatelessWidget {
+class ShopView extends StatefulWidget {
   const ShopView({super.key});
 
   @override
+  State<ShopView> createState() => _ShopViewState();
+}
+
+class _ShopViewState extends State<ShopView> {
+  late final ShopController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<ShopController>()
+        ? Get.find<ShopController>()
+        : Get.put(ShopController());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ShopController());
 
     return Scaffold(
       body: Stack(

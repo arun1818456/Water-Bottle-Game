@@ -31,6 +31,11 @@ class StorageService extends GetxService {
   static const String _keyDailyLastClaim = 'asm_daily_last_claim';
   static const String _keyDailyStreak = 'asm_daily_streak';
 
+  static const String _keyUserId = 'asm_user_id';
+  static const String _keyUserName = 'asm_user_name';
+  static const String _keyUserAvatar = 'asm_user_avatar';
+  static const String _keyUserEmail = 'asm_user_email';
+
   // Reactive Observables for Real-time UI updates
   final RxInt coins = 100.obs;
   final RxInt unlockedLevel = 1.obs;
@@ -103,7 +108,88 @@ class StorageService extends GetxService {
     lastDailyClaimDate.value = _prefs.getString(_keyDailyLastClaim) ?? '';
   }
 
+  // --- User Profile & Identification ---
 
+  final RxString userAvatarEmoji = '🎮'.obs;
+  final RxString userEmail = ''.obs;
+
+  String getOrCreateUserId() {
+    String? id = _prefs.getString(_keyUserId);
+    if (id == null || id.isEmpty) {
+      id = 'user_${DateTime.now().millisecondsSinceEpoch}';
+      _prefs.setString(_keyUserId, id);
+    }
+    return id;
+  }
+
+  String getOrCreateUserName() {
+    String? name = _prefs.getString(_keyUserName);
+    if (name == null || name.isEmpty) {
+      final rand = (DateTime.now().millisecondsSinceEpoch % 8999) + 1000;
+      name = 'Player_$rand';
+      _prefs.setString(_keyUserName, name);
+    }
+    return name;
+  }
+
+  String getOrCreateUserAvatar() {
+    String? emoji = _prefs.getString(_keyUserAvatar);
+    if (emoji == null || emoji.isEmpty) {
+      emoji = '🎮';
+      _prefs.setString(_keyUserAvatar, emoji);
+    }
+    userAvatarEmoji.value = emoji;
+    return emoji;
+  }
+
+  Future<void> setUserName(String newName) async {
+    if (newName.trim().isEmpty) return;
+    await _prefs.setString(_keyUserName, newName.trim());
+  }
+
+  Future<void> setUserAvatar(String emoji) async {
+    userAvatarEmoji.value = emoji;
+    await _prefs.setString(_keyUserAvatar, emoji);
+  }
+
+  Future<void> setUserEmail(String email) async {
+    userEmail.value = email;
+    await _prefs.setString(_keyUserEmail, email);
+  }
+
+  /// Restores local player data from Cloud Firestore document
+  Future<void> restoreFromCloudMap(Map<String, dynamic> data) async {
+    if (data.containsKey('coins')) {
+      coins.value = data['coins'] as int? ?? 100;
+      await _prefs.setInt(_keyCoins, coins.value);
+    }
+    if (data.containsKey('unlockedLevel')) {
+      unlockedLevel.value = data['unlockedLevel'] as int? ?? 1;
+      await _prefs.setInt(_keyUnlockedLevel, unlockedLevel.value);
+    }
+    if (data.containsKey('levelStars') && data['levelStars'] is Map) {
+      try {
+        final Map rawMap = data['levelStars'] as Map;
+        final parsed = rawMap.map((k, v) => MapEntry(int.parse(k.toString()), v as int));
+        levelStars.assignAll(parsed);
+        await _prefs.setString(_keyLevelStars, jsonEncode(levelStars.map((k, v) => MapEntry(k.toString(), v))));
+      } catch (_) {}
+    }
+    if (data.containsKey('userName') && (data['userName'] as String).isNotEmpty) {
+      await setUserName(data['userName'] as String);
+    }
+    if (data.containsKey('avatarEmoji') && (data['avatarEmoji'] as String).isNotEmpty) {
+      await setUserAvatar(data['avatarEmoji'] as String);
+    }
+  }
+
+  int get totalStarsCollected {
+    int sum = levelStars.values.fold(0, (acc, s) => acc + s);
+    if (sum == 0 && completedCount.value > 0) {
+      return completedCount.value * 3;
+    }
+    return sum;
+  }
 
   // --- Economy Methods ---
 
