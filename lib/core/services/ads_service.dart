@@ -108,14 +108,19 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Banner Ad loaded.');
+          debugPrint('AdsService: Home Banner Ad loaded successfully.');
           isBannerLoaded.value = true;
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('AdsService: Banner Ad failed to load: $error');
+          debugPrint('AdsService: Home Banner Ad failed to load: ${error.message} (Code: ${error.code})');
           ad.dispose();
           _homeBannerAd = null;
           isBannerLoaded.value = false;
+
+          // Auto-retry after 5 seconds
+          Future.delayed(const Duration(seconds: 5), () {
+            loadHomeBanner();
+          });
         },
       ),
     );
@@ -161,14 +166,19 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Game Banner Ad loaded.');
+          debugPrint('AdsService: Game Banner Ad loaded successfully.');
           isGameBannerLoaded.value = true;
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('AdsService: Game Banner Ad failed to load: $error');
+          debugPrint('AdsService: Game Banner Ad failed to load: ${error.message} (Code: ${error.code})');
           ad.dispose();
           _gameBannerAd = null;
           isGameBannerLoaded.value = false;
+
+          // Auto-retry after 5 seconds
+          Future.delayed(const Duration(seconds: 5), () {
+            loadGameBanner();
+          });
         },
       ),
     );
