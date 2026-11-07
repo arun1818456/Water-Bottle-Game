@@ -122,6 +122,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     tutorialStep.value = 0;
 
     AdsService.to.preloadRewardedAd();
+    AdsService.to.preloadInterstitialAd();
+    AdsService.to.loadGameBanner();
 
     if (isTutorial) {
       difficulty.value = 'Tutorial';

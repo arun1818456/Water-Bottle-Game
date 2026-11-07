@@ -99,7 +99,8 @@ class AdsService extends GetxService {
   // --- Banner Ad (Home Screen Only) ---
 
   void loadHomeBanner() {
-    if (!_isInitialized || isBannerLoaded.value) return;
+    if (!_isInitialized) return;
+    if (_homeBannerAd != null && isBannerLoaded.value) return;
 
     _homeBannerAd = BannerAd(
       adUnitId: bannerAdUnitId,
@@ -151,7 +152,8 @@ class AdsService extends GetxService {
   final RxBool isGameBannerLoaded = false.obs;
 
   void loadGameBanner() {
-    if (!_isInitialized || isGameBannerLoaded.value) return;
+    if (!_isInitialized) return;
+    if (_gameBannerAd != null && isGameBannerLoaded.value) return;
 
     _gameBannerAd = BannerAd(
       adUnitId: gameBannerAdUnitId,
@@ -218,6 +220,10 @@ class AdsService extends GetxService {
         },
       ),
     );
+  }
+
+  void preloadInterstitialAd() {
+    _loadInterstitialAd();
   }
 
   /// Checks if an interstitial ad should be shown based on completed levels
