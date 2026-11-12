@@ -99,7 +99,8 @@ class AdsService extends GetxService {
   // --- Banner Ad (Home Screen Only) ---
 
   void loadHomeBanner() {
-    if (!_isInitialized || isBannerLoaded.value) return;
+    if (!_isInitialized) return;
+    if (_homeBannerAd != null && isBannerLoaded.value) return;
 
     _homeBannerAd = BannerAd(
       adUnitId: bannerAdUnitId,
@@ -107,14 +108,19 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Banner Ad loaded.');
+          debugPrint('AdsService: Home Banner Ad loaded successfully.');
           isBannerLoaded.value = true;
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('AdsService: Banner Ad failed to load: $error');
+          debugPrint('AdsService: Home Banner Ad failed to load: ${error.message} (Code: ${error.code})');
           ad.dispose();
           _homeBannerAd = null;
           isBannerLoaded.value = false;
+
+          // Auto-retry after 5 seconds
+          Future.delayed(const Duration(seconds: 5), () {
+            loadHomeBanner();
+          });
         },
       ),
     );
@@ -151,7 +157,8 @@ class AdsService extends GetxService {
   final RxBool isGameBannerLoaded = false.obs;
 
   void loadGameBanner() {
-    if (!_isInitialized || isGameBannerLoaded.value) return;
+    if (!_isInitialized) return;
+    if (_gameBannerAd != null && isGameBannerLoaded.value) return;
 
     _gameBannerAd = BannerAd(
       adUnitId: gameBannerAdUnitId,
@@ -159,14 +166,19 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Game Banner Ad loaded.');
+          debugPrint('AdsService: Game Banner Ad loaded successfully.');
           isGameBannerLoaded.value = true;
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('AdsService: Game Banner Ad failed to load: $error');
+          debugPrint('AdsService: Game Banner Ad failed to load: ${error.message} (Code: ${error.code})');
           ad.dispose();
           _gameBannerAd = null;
           isGameBannerLoaded.value = false;
+
+          // Auto-retry after 5 seconds
+          Future.delayed(const Duration(seconds: 5), () {
+            loadGameBanner();
+          });
         },
       ),
     );
@@ -218,6 +230,10 @@ class AdsService extends GetxService {
         },
       ),
     );
+  }
+
+  void preloadInterstitialAd() {
+    _loadInterstitialAd();
   }
 
   /// Checks if an interstitial ad should be shown based on completed levels

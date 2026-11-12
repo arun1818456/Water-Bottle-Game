@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:water_bottle_ais/core/constants/app_constants.dart';
 import 'package:water_bottle_ais/core/services/storage_service.dart';
 import 'package:water_bottle_ais/features/leaderboard/leaderboard_controller.dart';
 
@@ -28,13 +29,13 @@ void main() {
 
     test('Current user rank updates dynamically based on total stars', () {
       final starsMap = <int, int>{};
-      for (var i = 1; i <= 400; i++) {
+      for (var i = 1; i <= AppConstants.totalHandcraftedLevels; i++) {
         starsMap[i] = 3;
       }
       StorageService.to.levelStars.assignAll(starsMap);
 
       final controller = Get.put(LeaderboardController());
-      expect(controller.userTotalStars.value, equals(1200));
+      expect(controller.userTotalStars.value, equals(AppConstants.totalHandcraftedLevels * 3));
       expect(controller.currentUserRank.value, equals(1)); // #1 rank
     });
   });
