@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
@@ -10,6 +11,9 @@ class StorageService extends GetxService {
   static StorageService get to => Get.find<StorageService>();
 
   late SharedPreferences _prefs;
+
+  /// Optional listener triggered when important player progress changes
+  VoidCallback? onDataChanged;
 
   // Keys
   static const String _keyCoins = 'asm_coins';
@@ -145,42 +149,158 @@ class StorageService extends GetxService {
   Future<void> setUserName(String newName) async {
     if (newName.trim().isEmpty) return;
     await _prefs.setString(_keyUserName, newName.trim());
+    onDataChanged?.call();
   }
 
   Future<void> setUserAvatar(String emoji) async {
     userAvatarEmoji.value = emoji;
     await _prefs.setString(_keyUserAvatar, emoji);
+    onDataChanged?.call();
   }
 
   Future<void> setUserEmail(String email) async {
     userEmail.value = email;
     await _prefs.setString(_keyUserEmail, email);
+    onDataChanged?.call();
   }
 
-  /// Restores local player data from Cloud Firestore document
+  /// Backward compatible wrapper calling [mergeAndRestoreFromCloudMap]
   Future<void> restoreFromCloudMap(Map<String, dynamic> data) async {
-    if (data.containsKey('coins')) {
-      coins.value = data['coins'] as int? ?? 100;
-      await _prefs.setInt(_keyCoins, coins.value);
+    await mergeAndRestoreFromCloudMap(data);
+  }
+
+  /// Smartly merges cloud data with local progress without data loss.
+  /// - If local is a fresh/unplayed session (level 1, 0 completions),
+  ///   it fully restores the cloud account (coins, level, stars, cosmetics, streaks).
+  /// - If local has progress, it keeps highest level, highest coins, union of skins,
+  ///   and highest star ratings.
+  Future<void> mergeAndRestoreFromCloudMap(Map<String, dynamic> data) async {
+    final bool isLocalFresh = completedCount.value == 0 &&
+        unlockedLevel.value <= 1 &&
+        levelStars.isEmpty;
+
+    // 1. Coins
+    if (data.containsKey('coins') && data['coins'] is int) {
+      final cloudCoins = data['coins'] as int;
+      if (isLocalFresh || cloudCoins > coins.value) {
+        coins.value = cloudCoins;
+        await _prefs.setInt(_keyCoins, coins.value);
+      }
     }
-    if (data.containsKey('unlockedLevel')) {
-      unlockedLevel.value = data['unlockedLevel'] as int? ?? 1;
-      await _prefs.setInt(_keyUnlockedLevel, unlockedLevel.value);
+
+    // 2. Unlocked Level & Current Level
+    if (data.containsKey('unlockedLevel') && data['unlockedLevel'] is int) {
+      final cloudLevel = data['unlockedLevel'] as int;
+      if (isLocalFresh || cloudLevel > unlockedLevel.value) {
+        unlockedLevel.value = cloudLevel;
+        currentLevel.value = cloudLevel;
+        await _prefs.setInt(_keyUnlockedLevel, unlockedLevel.value);
+        await _prefs.setInt(_keyCurrentLevel, currentLevel.value);
+      }
     }
+
+    // 3. Completed Count
+    if (data.containsKey('completedCount') && data['completedCount'] is int) {
+      final cloudCount = data['completedCount'] as int;
+      if (isLocalFresh || cloudCount > completedCount.value) {
+        completedCount.value = cloudCount;
+        await _prefs.setInt(_keyCompletedCount, completedCount.value);
+      }
+    }
+
+    // 4. Tutorial Completed: if level > 1 or completedCount > 0, tutorial is completed!
+    if (unlockedLevel.value > 1 || completedCount.value > 0) {
+      tutorialCompleted.value = true;
+      await _prefs.setBool(_keyTutorialCompleted, true);
+    }
+
+    // 5. Level Stars: merge map preserving the highest star per level
     if (data.containsKey('levelStars') && data['levelStars'] is Map) {
       try {
         final Map rawMap = data['levelStars'] as Map;
-        final parsed = rawMap.map((k, v) => MapEntry(int.parse(k.toString()), v as int));
-        levelStars.assignAll(parsed);
-        await _prefs.setString(_keyLevelStars, jsonEncode(levelStars.map((k, v) => MapEntry(k.toString(), v))));
+        final Map<int, int> mergedStars = Map<int, int>.from(levelStars);
+        rawMap.forEach((k, v) {
+          final lvl = int.tryParse(k.toString());
+          final star = v is int ? v : int.tryParse(v.toString());
+          if (lvl != null && star != null) {
+            final existing = mergedStars[lvl] ?? 0;
+            if (isLocalFresh || star > existing) {
+              mergedStars[lvl] = star;
+            }
+          }
+        });
+        levelStars.assignAll(mergedStars);
+        await _prefs.setString(
+          _keyLevelStars,
+          jsonEncode(levelStars.map((k, v) => MapEntry(k.toString(), v))),
+        );
       } catch (_) {}
     }
+
+    // 6. Unlocked Bottle Skins: Set union
+    if (data.containsKey('unlockedBottleSkins') && data['unlockedBottleSkins'] is List) {
+      final cloudSkins = List<String>.from((data['unlockedBottleSkins'] as List).map((e) => e.toString()));
+      final mergedSkins = Set<String>.from(unlockedBottleSkins)..addAll(cloudSkins);
+      unlockedBottleSkins.assignAll(mergedSkins);
+      await _prefs.setStringList(_keyBottleSkins, unlockedBottleSkins.toList());
+    }
+
+    // 7. Equipped Skin
+    if (data.containsKey('equippedBottleSkin') && data['equippedBottleSkin'] is String) {
+      final cloudEquipped = data['equippedBottleSkin'] as String;
+      if (cloudEquipped.isNotEmpty && unlockedBottleSkins.contains(cloudEquipped)) {
+        if (isLocalFresh || equippedBottleSkin.value == 'glass') {
+          equippedBottleSkin.value = cloudEquipped;
+          await _prefs.setString(_keyEquippedBottle, cloudEquipped);
+        }
+      }
+    }
+
+    // 8. Unlocked Backgrounds: Set union
+    if (data.containsKey('unlockedBackgrounds') && data['unlockedBackgrounds'] is List) {
+      final cloudBgs = List<String>.from((data['unlockedBackgrounds'] as List).map((e) => e.toString()));
+      final mergedBgs = Set<String>.from(unlockedBackgrounds)..addAll(cloudBgs);
+      unlockedBackgrounds.assignAll(mergedBgs);
+      await _prefs.setStringList(_keyBackgrounds, unlockedBackgrounds.toList());
+    }
+
+    // 9. Equipped Background
+    if (data.containsKey('equippedBackground') && data['equippedBackground'] is String) {
+      final cloudBg = data['equippedBackground'] as String;
+      if (cloudBg.isNotEmpty && unlockedBackgrounds.contains(cloudBg)) {
+        if (isLocalFresh || equippedBackground.value == 'ocean') {
+          equippedBackground.value = cloudBg;
+          await _prefs.setString(_keyEquippedBackground, cloudBg);
+        }
+      }
+    }
+
+    // 10. Daily Streak
+    if (data.containsKey('dailyStreak') && data['dailyStreak'] is int) {
+      final cloudStreak = data['dailyStreak'] as int;
+      if (isLocalFresh || cloudStreak > dailyStreak.value) {
+        dailyStreak.value = cloudStreak;
+        await _prefs.setInt(_keyDailyStreak, dailyStreak.value);
+        if (data.containsKey('lastDailyClaimDate') && (data['lastDailyClaimDate'] as String).isNotEmpty) {
+          lastDailyClaimDate.value = data['lastDailyClaimDate'] as String;
+          await _prefs.setString(_keyDailyLastClaim, lastDailyClaimDate.value);
+        }
+      }
+    }
+
+    // 11. User Name & Avatar
     if (data.containsKey('userName') && (data['userName'] as String).isNotEmpty) {
-      await setUserName(data['userName'] as String);
+      final cloudName = data['userName'] as String;
+      final currentName = getOrCreateUserName();
+      if ((isLocalFresh || currentName.startsWith('Player_')) && !cloudName.startsWith('Player_')) {
+        await _prefs.setString(_keyUserName, cloudName);
+      }
     }
     if (data.containsKey('avatarEmoji') && (data['avatarEmoji'] as String).isNotEmpty) {
       await setUserAvatar(data['avatarEmoji'] as String);
     }
+
+    onDataChanged?.call();
   }
 
   int get totalStarsCollected {
@@ -197,6 +317,7 @@ class StorageService extends GetxService {
     if (amount <= 0) return;
     coins.value += amount;
     await _prefs.setInt(_keyCoins, coins.value);
+    onDataChanged?.call();
   }
 
   Future<bool> spendCoins(int amount) async {
@@ -204,6 +325,7 @@ class StorageService extends GetxService {
     if (coins.value < amount) return false;
     coins.value -= amount;
     await _prefs.setInt(_keyCoins, coins.value);
+    onDataChanged?.call();
     return true;
   }
 
@@ -227,6 +349,8 @@ class StorageService extends GetxService {
       unlockedLevel.value = levelId + 1;
       await _prefs.setInt(_keyUnlockedLevel, unlockedLevel.value);
     }
+
+    onDataChanged?.call();
   }
 
   Future<void> setCurrentLevel(int levelId) async {
@@ -254,6 +378,7 @@ class StorageService extends GetxService {
     if (unlockedBottleSkins.contains(skin.name)) {
       equippedBottleSkin.value = skin.name;
       await _prefs.setString(_keyEquippedBottle, skin.name);
+      onDataChanged?.call();
       return true;
     }
 
@@ -262,6 +387,7 @@ class StorageService extends GetxService {
       equippedBottleSkin.value = skin.name;
       await _prefs.setStringList(_keyBottleSkins, unlockedBottleSkins.toList());
       await _prefs.setString(_keyEquippedBottle, skin.name);
+      onDataChanged?.call();
       return true;
     }
     return false;
@@ -271,6 +397,7 @@ class StorageService extends GetxService {
     if (unlockedBottleSkins.contains(skinName)) {
       equippedBottleSkin.value = skinName;
       await _prefs.setString(_keyEquippedBottle, skinName);
+      onDataChanged?.call();
     }
   }
 
@@ -278,6 +405,7 @@ class StorageService extends GetxService {
     if (unlockedBackgrounds.contains(bg.name)) {
       equippedBackground.value = bg.name;
       await _prefs.setString(_keyEquippedBackground, bg.name);
+      onDataChanged?.call();
       return true;
     }
 
@@ -286,6 +414,7 @@ class StorageService extends GetxService {
       equippedBackground.value = bg.name;
       await _prefs.setStringList(_keyBackgrounds, unlockedBackgrounds.toList());
       await _prefs.setString(_keyEquippedBackground, bg.name);
+      onDataChanged?.call();
       return true;
     }
     return false;
@@ -295,6 +424,7 @@ class StorageService extends GetxService {
     if (unlockedBackgrounds.contains(bgName)) {
       equippedBackground.value = bgName;
       await _prefs.setString(_keyEquippedBackground, bgName);
+      onDataChanged?.call();
     }
   }
 
@@ -364,6 +494,14 @@ class StorageService extends GetxService {
     await _prefs.setInt(_keyDailyStreak, dailyStreak.value);
 
     return rewardCoins;
+  }
+
+  Future<void> resetDailyStreak() async {
+    dailyStreak.value = 0;
+    lastDailyClaimDate.value = '';
+    await _prefs.setInt(_keyDailyStreak, 0);
+    await _prefs.setString(_keyDailyLastClaim, '');
+    onDataChanged?.call();
   }
 
   // --- Reset Progress ---

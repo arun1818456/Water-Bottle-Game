@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/services/firebase_service.dart';
 import '../../core/widgets/profile_auth_dialog.dart';
 import 'leaderboard_controller.dart';
 
@@ -14,6 +15,7 @@ class LeaderboardView extends StatefulWidget {
 
 class _LeaderboardViewState extends State<LeaderboardView> {
   late final LeaderboardController controller;
+  bool _isSigningIn = false;
 
   @override
   void initState() {
@@ -21,11 +23,13 @@ class _LeaderboardViewState extends State<LeaderboardView> {
     controller = Get.isRegistered<LeaderboardController>()
         ? Get.find<LeaderboardController>()
         : Get.put(LeaderboardController());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.refreshLeaderboard();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -45,50 +49,39 @@ class _LeaderboardViewState extends State<LeaderboardView> {
               // 1. Top Bar
               _buildTopBar(context, controller),
 
-              Obx(() {
-                if (!controller.isFirebaseActive.value) {
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF9800).withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFFF9800), width: 1),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.cloud_off_rounded, color: Color(0xFFFFB300), size: 18),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Showing Offline Demo Ranks. Add google-services.json for live Firebase global players.',
-                            style: TextStyle(fontSize: 10, color: Color(0xFFFFE082), fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
-
               const SizedBox(height: 8),
 
               // 2. Main Content
               Expanded(
                 child: Obx(() {
+                  if (controller.isLoading.value) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF00E5FF),
+                      ),
+                    );
+                  }
+
+                  // If user is not logged in: Show Beautiful Login Prompt with Google CTA
+                  if (!controller.isUserLoggedIn.value) {
+                    return _buildLoginRequiredView(context, controller);
+                  }
+
                   final list = controller.leaderboardUsers;
-                  if (list.isEmpty) return const SizedBox.shrink();
+                  if (list.isEmpty) {
+                    return _buildEmptyListView();
+                  }
 
                   final top1 = list[0];
                   final top2 = list.length > 1 ? list[1] : null;
                   final top3 = list.length > 2 ? list[2] : null;
                   final remainingList = list.length > 3 ? list.sublist(3) : <LeaderboardUser>[];
+                  // If <= 3 players exist globally, display all players in the list so the player always sees their row
+                  final displayList = remainingList.isNotEmpty ? remainingList : list;
 
                   return Column(
                     children: [
-                      // Top 3 Podium Display
+                      // Top Podium Display
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _buildTop3Podium(top1, top2, top3),
@@ -96,7 +89,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
 
                       const SizedBox(height: 16),
 
-                      // Rest of Players List
+                      // Real Dynamic Players List Container
                       Expanded(
                         child: Container(
                           margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -110,9 +103,9 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                           ),
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                            itemCount: remainingList.length,
+                            itemCount: displayList.length,
                             itemBuilder: (context, index) {
-                              final user = remainingList[index];
+                              final user = displayList[index];
                               return _buildPlayerRow(user);
                             },
                             separatorBuilder: (context, index) => const Divider(
@@ -127,8 +120,223 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                 }),
               ),
 
-              // 3. Fixed Bottom Current User Summary Bar
-              _buildBottomUserBar(controller),
+              // 3. Fixed Bottom Current User Summary Bar (Only if Logged In)
+              Obx(() {
+                if (controller.isUserLoggedIn.value) {
+                  return _buildBottomUserBar(controller);
+                }
+                return const SizedBox.shrink();
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Modern Empty View when logged in but no data
+  Widget _buildEmptyListView() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.emoji_events_outlined, size: 64, color: Color(0xFF00E5FF)),
+          const SizedBox(height: 16),
+          const Text(
+            'No Leaderboard Data Yet',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Complete levels to claim the #1 spot on the global leaderboard!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Beautiful Login Required screen when user is a guest (No Static / Dummy Data)
+  Widget _buildLoginRequiredView(BuildContext context, LeaderboardController controller) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF0B2447),
+                Color(0xFF071933),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                blurRadius: 24,
+                spreadRadius: 2,
+              ),
+              const BoxShadow(
+                color: Colors.black87,
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Trophy / Badge Icon
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD700), Color(0xFFFF9100)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                      blurRadius: 20,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.emoji_events_rounded,
+                    color: Color(0xFF3E2723),
+                    size: 42,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              const Text(
+                'JOIN GLOBAL LEADERBOARD',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                'Sign in with Google to view live global player ranks, compete with friends, and backup your level stars to the cloud!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.75),
+                  height: 1.45,
+                ),
+              ),
+
+              const SizedBox(height: 26),
+
+              // Direct One-Tap Google Sign-In Button
+              GestureDetector(
+                onTap: _isSigningIn
+                    ? null
+                    : () async {
+                        AudioService.to.playButtonClick();
+                        setState(() => _isSigningIn = true);
+                        final err = await FirebaseService.to.signInWithGoogle();
+                        if (mounted) setState(() => _isSigningIn = false);
+                        if (err == null) {
+                          controller.refreshLeaderboard(invalidateCache: true);
+                          Get.snackbar(
+                            'Welcome!',
+                            'Logged in successfully! Dynamic leaderboard loaded.',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: const Color(0xFF00E676).withValues(alpha: 0.95),
+                            colorText: Colors.black,
+                            duration: const Duration(seconds: 3),
+                          );
+                        } else if (err != 'Google Sign-In canceled.') {
+                          Get.snackbar(
+                            'Sign-In Failed',
+                            err,
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: const Color(0xFFFF5252).withValues(alpha: 0.95),
+                            colorText: Colors.white,
+                          );
+                        }
+                      },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        blurRadius: 14,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: _isSigningIn
+                      ? const Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
+                            ),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFF4285F4),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'G',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'SIGN IN WITH GOOGLE',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1E293B),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
             ],
           ),
         ),
@@ -217,7 +425,9 @@ class _LeaderboardViewState extends State<LeaderboardView> {
           GestureDetector(
             onTap: () {
               AudioService.to.playButtonClick();
-              Get.dialog(const ProfileAuthDialog()).then((_) {
+              Get.dialog(ProfileAuthDialog(
+                initialTab: controller.isUserLoggedIn.value ? 0 : 1,
+              )).then((_) {
                 controller.refreshLeaderboard();
               });
             },
@@ -238,7 +448,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                  Icon(Icons.person_rounded, color: Colors.white, size: 14),
                   SizedBox(width: 4),
                   Text(
                     'Profile',
@@ -258,45 +468,104 @@ class _LeaderboardViewState extends State<LeaderboardView> {
   }
 
   Widget _buildTop3Podium(
-    LeaderboardUser? top1,
+    LeaderboardUser top1,
     LeaderboardUser? top2,
     LeaderboardUser? top3,
   ) {
-    return SizedBox(
-      height: 190,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+    if (top2 == null && top3 == null) {
+      return Center(
+        child: SizedBox(
+          width: 160,
+          child: _buildPodiumColumn(
+            user: top1,
+            rank: 1,
+            height: 175,
+            accentColor: const Color(0xFFFFD700),
+            isGold: true,
+          ),
+        ),
+      );
+    }
+
+    if (top3 == null) {
+      return Row(
         crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 2nd Place (Silver)
-          if (top2 != null)
-            Expanded(child: _buildPodiumCard(top2, 2, const Color(0xFFC0C0C0), 150))
-          else
-            const Spacer(),
-
-          const SizedBox(width: 8),
-
-          // 1st Place (Gold Center)
-          if (top1 != null)
-            Expanded(child: _buildPodiumCard(top1, 1, const Color(0xFFFFD700), 185))
-          else
-            const Spacer(),
-
-          const SizedBox(width: 8),
-
-          // 3rd Place (Bronze)
-          if (top3 != null)
-            Expanded(child: _buildPodiumCard(top3, 3, const Color(0xFFCD7F32), 140))
-          else
-            const Spacer(),
+          SizedBox(
+            width: 140,
+            child: _buildPodiumColumn(
+              user: top2!,
+              rank: 2,
+              height: 145,
+              accentColor: const Color(0xFFC0C0C0),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 140,
+            child: _buildPodiumColumn(
+              user: top1,
+              rank: 1,
+              height: 175,
+              accentColor: const Color(0xFFFFD700),
+              isGold: true,
+            ),
+          ),
         ],
-      ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // #2 Place (Silver)
+        Expanded(
+          child: _buildPodiumColumn(
+            user: top2!,
+            rank: 2,
+            height: 145,
+            accentColor: const Color(0xFFC0C0C0),
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        // #1 Place (Gold - Taller)
+        Expanded(
+          flex: 1,
+          child: _buildPodiumColumn(
+            user: top1,
+            rank: 1,
+            height: 175,
+            accentColor: const Color(0xFFFFD700),
+            isGold: true,
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        // #3 Place (Bronze)
+        Expanded(
+          child: _buildPodiumColumn(
+            user: top3,
+            rank: 3,
+            height: 130,
+            accentColor: const Color(0xFFCD7F32),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPodiumCard(LeaderboardUser user, int rank, Color accentColor, double height) {
-    final isGold = rank == 1;
-
+  Widget _buildPodiumColumn({
+    required LeaderboardUser user,
+    required int rank,
+    required double height,
+    required Color accentColor,
+    bool isGold = false,
+  }) {
     return Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
@@ -453,7 +722,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: user.isCurrentUser ? const Color(0xFF00E5FF) : Colors.white,
                         ),
@@ -462,17 +731,17 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                     if (user.isCurrentUser) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00E5FF),
+                          color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
                           'YOU',
                           style: TextStyle(
-                            fontSize: 8,
+                            fontSize: 9,
                             fontWeight: FontWeight.w900,
-                            color: Colors.black,
+                            color: Color(0xFF00E5FF),
                           ),
                         ),
                       ),
@@ -482,21 +751,23 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                 Text(
                   'Level ${user.level}',
                   style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white54,
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
 
-          // Stars Count Badge
+          // Stars Count
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF0B2C5C),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF1E60A8)),
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

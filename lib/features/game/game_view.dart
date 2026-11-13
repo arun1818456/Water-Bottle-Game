@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/services/ads_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
@@ -35,6 +36,14 @@ class _GameViewState extends State<GameView> {
       initialLevelId: effectiveLevelId,
       isTutorial: widget.isTutorial,
     ));
+  }
+
+  @override
+  void dispose() {
+    if (Get.isRegistered<GameController>()) {
+      Get.delete<GameController>();
+    }
+    super.dispose();
   }
 
   @override
@@ -364,8 +373,8 @@ class _GameViewState extends State<GameView> {
                     _buildCircularIconButton(
                       icon: Icons.lightbulb_outline_rounded,
                       iconColor: const Color(0xFF00E676),
-                      badge: hintCount < 3 ? 'Free' : 'Ad',
-                      badgeColor: hintCount < 3 ? const Color(0xFF00E676) : const Color(0xFFFFB300),
+                      badge: hintCount < AppConstants.freeHintsPerLevel ? 'Free' : 'Ad',
+                      badgeColor: hintCount < AppConstants.freeHintsPerLevel ? const Color(0xFF00E676) : const Color(0xFFFFB300),
                       onTap: () {
                         AudioService.to.playButtonClick();
                         HapticFeedbackHelper.selectionClick();

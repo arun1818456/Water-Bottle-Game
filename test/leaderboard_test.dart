@@ -14,20 +14,19 @@ void main() {
     await Get.putAsync(() => StorageService().init());
   });
 
-  group('Leaderboard Controller & Ranking Tests', () {
-    test('Leaderboard users are sorted by stars in descending order', () {
+  group('Leaderboard Controller & Ranking Tests (Zero Static Data & Cloud Architecture)', () {
+    test('Guest user has zero static dummy data and prompts login', () {
       final controller = Get.put(LeaderboardController());
-      final list = controller.leaderboardUsers;
 
-      expect(list.length, greaterThanOrEqualTo(10));
-
-      for (var i = 0; i < list.length - 1; i++) {
-        expect(list[i].stars, greaterThanOrEqualTo(list[i + 1].stars));
-        expect(list[i].rank, equals(i + 1));
-      }
+      // Under new rule: No dummy/static data when not logged in!
+      expect(controller.isUserLoggedIn.value, isFalse);
+      expect(controller.leaderboardUsers.isEmpty, isTrue);
+      expect(controller.currentUserRank.value, equals(0));
     });
 
-    test('Current user rank updates dynamically based on total stars', () {
+    test('Logged-in user loads dynamic leaderboard with valid rank and stars', () async {
+      // Simulate logged in user
+      await StorageService.to.setUserEmail('player@gmail.com');
       final starsMap = <int, int>{};
       for (var i = 1; i <= AppConstants.totalHandcraftedLevels; i++) {
         starsMap[i] = 3;
@@ -35,8 +34,11 @@ void main() {
       StorageService.to.levelStars.assignAll(starsMap);
 
       final controller = Get.put(LeaderboardController());
+      expect(controller.isUserLoggedIn.value, isTrue);
       expect(controller.userTotalStars.value, equals(AppConstants.totalHandcraftedLevels * 3));
+      expect(controller.leaderboardUsers.isNotEmpty, isTrue);
       expect(controller.currentUserRank.value, equals(1)); // #1 rank
+      expect(controller.leaderboardUsers.first.isCurrentUser, isTrue);
     });
   });
 }

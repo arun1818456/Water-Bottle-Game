@@ -466,6 +466,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           onHome: () => isTutorial ? Get.offAllNamed('/home') : Get.back(),
           showNextLevel: !isTutorial,
           showReplay: !isTutorial,
+          isTutorial: isTutorial,
+          showCoins: !isTutorial,
           homeLabel: isTutorial ? 'Home' : 'Levels',
           title: isTutorial ? 'WELL DONE!' : 'VICTORY!',
           subtitle: isTutorial ? 'Tutorial Complete' : 'Level ${levelId.value} Cleared',
@@ -508,7 +510,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   void requestHint() {
     if (isPouring.value || isGameWon.value) return;
 
-    if (hintUsedCount.value < 2) {
+    if (hintUsedCount.value < AppConstants.freeHintsPerLevel) {
       // Free hint
       _provideHint();
     } else {

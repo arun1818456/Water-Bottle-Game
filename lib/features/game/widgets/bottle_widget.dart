@@ -61,7 +61,7 @@ class _BottleWidgetState extends State<BottleWidget>
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
-    )..repeat();
+    );
 
     _elevationController = AnimationController(
       vsync: this,
@@ -81,7 +81,7 @@ class _BottleWidgetState extends State<BottleWidget>
     _ambientSparkleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
-    )..repeat();
+    );
 
     if (widget.isSelected) {
       _elevationController.value = 1.0;
@@ -94,6 +94,9 @@ class _BottleWidgetState extends State<BottleWidget>
         widget.bottle.topColor,
         const Size(58, 150),
       );
+      _ambientSparkleController.repeat();
+    } else if (widget.bottle.isNotEmpty) {
+      _waveController.repeat();
     }
   }
 
@@ -122,12 +125,26 @@ class _BottleWidgetState extends State<BottleWidget>
       );
       _sparkleBurstController.forward(from: 0.0);
       _capController.forward(from: 0.0);
+      _ambientSparkleController.repeat();
+      if (_waveController.isAnimating) {
+        _waveController.stop();
+      }
       HapticFeedbackHelper.mediumImpact();
     } else if (_isCurrentlyCompleted && !isNowCompleted) {
       _isCurrentlyCompleted = false;
       // Reverted (e.g. Undo or Restart): Retract cap and clear sparkles
       _capController.reset();
       _sparkleBurstController.reset();
+      _ambientSparkleController.stop();
+      _ambientSparkleController.reset();
+    }
+
+    // Manage wave animation lifecycle based on content
+    final needsWave = widget.bottle.isNotEmpty && !_isCurrentlyCompleted;
+    if (needsWave && !_waveController.isAnimating) {
+      _waveController.repeat();
+    } else if (!needsWave && _waveController.isAnimating) {
+      _waveController.stop();
     }
   }
 

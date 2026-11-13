@@ -12,7 +12,20 @@
           "package_name": "com.aruninnovationstudio.water_bottle_ais"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "44715065965-3si2ellmdr2gge1p19u3f29taqv9dshq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aruninnovationstudio.water_bottle_ais",
+            "certificate_hash": "b25c1d2fd97771acd6513c8219a6411f8af32e40"
+          }
+        },
+        {
+          "client_id": "44715065965-1ccc5scgnnj3s0m3v3k0207qk7immsrk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAyvS2F5Igq9IkiNUqWe55KVEu1ajwNs2E"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "44715065965-1ccc5scgnnj3s0m3v3k0207qk7immsrk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

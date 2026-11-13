@@ -3,8 +3,6 @@ import 'dart:math';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:water_bottle_ais/features/game/logic/procedural_level_generator.dart';
-import 'package:water_bottle_ais/features/game/logic/water_sort_solver.dart';
-import 'package:water_bottle_ais/features/game/models/bottle.dart';
 
 void main() {
   test('Generate valid levels 180, 246, 366 with emptyBottles: 0', () {

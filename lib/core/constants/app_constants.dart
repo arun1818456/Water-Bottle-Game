@@ -4,11 +4,12 @@ class AppConstants {
 
   // App Metadata
   static const String appName = 'AIS Water Bottle';
-  static const String appVersion = '1.3.0';
+  static const String appVersion = '1.6.0';
 
   // Game Rules
   static const int maxBottleCapacity = 4;
   static const int maxExtraBottles = 2;
+  static const int freeHintsPerLevel = 2;
   static const int totalHandcraftedLevels = 600;
 
   // Economy & Rewards
@@ -22,7 +23,7 @@ class AppConstants {
   static const List<int> dailyRewards = [50, 75, 100, 150, 200, 300, 500];
 
   // Ad triggers
-  static const int interstitialLevelInterval = 2; // Every 4 completed levels
+  static const int interstitialLevelInterval = 2; // Every 2 completed levels
 
   // Star scoring rules:
   // 3 stars = 0 undos used

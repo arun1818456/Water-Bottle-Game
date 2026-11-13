@@ -505,6 +505,14 @@ class BottleCompletionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant BottleCompletionPainter oldDelegate) {
+    final hasActiveEffects = capProgress >= 0.8 || burstProgress > 0.0 || (capProgress > 0.0 && capProgress < 1.0);
+    final oldHasActive = oldDelegate.capProgress >= 0.8 || oldDelegate.burstProgress > 0.0 || (oldDelegate.capProgress > 0.0 && oldDelegate.capProgress < 1.0);
+
+    if (!hasActiveEffects && !oldHasActive) {
+      return oldDelegate.skinType != skinType ||
+          oldDelegate.liquidColorId != liquidColorId;
+    }
+
     return oldDelegate.skinType != skinType ||
         oldDelegate.capProgress != capProgress ||
         oldDelegate.burstProgress != burstProgress ||

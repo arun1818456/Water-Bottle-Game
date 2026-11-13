@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../features/leaderboard/leaderboard_controller.dart';
 import '../constants/app_colors.dart';
 import '../services/audio_service.dart';
 import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
 
-/// Interactive Profile & Direct Google Login/Signup Dialog
+/// Modal dialog allowing user to edit display name, choose custom avatar,
+/// or connect / disconnect their Google Account via Firebase.
 class ProfileAuthDialog extends StatefulWidget {
-  const ProfileAuthDialog({super.key});
+  final int initialTab;
+  const ProfileAuthDialog({super.key, this.initialTab = 0});
 
   @override
   State<ProfileAuthDialog> createState() => _ProfileAuthDialogState();
@@ -16,19 +19,20 @@ class ProfileAuthDialog extends StatefulWidget {
 class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
   final storage = StorageService.to;
   late final TextEditingController _nameController;
-
-  String _selectedEmoji = '🎮';
-  int _selectedTab = 0; // 0 = Profile Customization, 1 = Google Sign In
+  late String _selectedEmoji;
+  int _selectedTab = 0; // 0 = Profile, 1 = Google Auth
   bool _isLoading = false;
   String? _errorMessage;
 
-  final List<String> _avatars = [
-    '🎮', '👑', '🦁', '🦊', '🐯', '🐉', '🤖', '🧙', '🥷', '⚡', '🐬', '🌺'
+  static const List<String> _avatars = [
+    '🎮', '🌊', '💧', '🧪', '👑', '🦁', '🦊', '🐯',
+    '🐉', '👸', '🤖', '🦄', '🦅', '🐺', '⚡', '🐬',
   ];
 
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab;
     _nameController = TextEditingController(text: storage.getOrCreateUserName());
     _selectedEmoji = storage.getOrCreateUserAvatar();
   }
@@ -48,7 +52,7 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
     await storage.setUserAvatar(_selectedEmoji);
 
     if (Get.isRegistered<FirebaseService>()) {
-      await FirebaseService.to.syncUserData();
+      await FirebaseService.to.syncUserData(force: true);
     }
 
     Get.back();
@@ -77,6 +81,9 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
     setState(() => _isLoading = false);
 
     if (err == null) {
+      if (Get.isRegistered<LeaderboardController>()) {
+        Get.find<LeaderboardController>().refreshLeaderboard(invalidateCache: true);
+      }
       Get.back();
       Get.snackbar(
         'Welcome!',
@@ -346,6 +353,9 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
                         GestureDetector(
                           onTap: () async {
                             await FirebaseService.to.signOut();
+                            if (Get.isRegistered<LeaderboardController>()) {
+                              Get.find<LeaderboardController>().refreshLeaderboard(invalidateCache: true);
+                            }
                             setState(() {});
                           },
                           child: Container(
@@ -449,36 +459,50 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
                                 ),
                               ],
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (_isLoading)
-                                  const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(color: Colors.black87, strokeWidth: 2),
+                            child: _isLoading
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
+                                      ),
+                                    ),
                                   )
-                                else ...[
-                                  const Text(
-                                    'G',
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF4285F4),
-                                    ),
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(0xFF4285F4),
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            'G',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'SIGN IN WITH GOOGLE',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF1E293B),
+                                          letterSpacing: 0.8,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Sign in with Google',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
                           ),
                         ),
                       ],
@@ -493,7 +517,7 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
     );
   }
 
-  Widget _buildTabButton(int index, String label) {
+  Widget _buildTabButton(int index, String title) {
     final isSelected = _selectedTab == index;
     return Expanded(
       child: GestureDetector(
@@ -505,17 +529,17 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
           AudioService.to.playButtonClick();
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF00E5FF) : Colors.transparent,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Center(
             child: Text(
-              label,
+              title,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
                 color: isSelected ? Colors.black : Colors.white70,
               ),

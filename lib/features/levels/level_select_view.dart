@@ -60,11 +60,7 @@ class _LevelSelectViewState extends State<LevelSelectView> {
               final unlockedLevel = controller.storage.unlockedLevel.value;
               final levelIds = controller.filteredLevelIds;
 
-              // Calculate total stars collected
-              int totalStars = 0;
-              for (int i = 1; i <= AppConstants.totalHandcraftedLevels; i++) {
-                totalStars += controller.storage.getStarsForLevel(i);
-              }
+              final totalStars = controller.storage.totalStarsCollected;
 
               return Column(
                 children: [
@@ -73,8 +69,6 @@ class _LevelSelectViewState extends State<LevelSelectView> {
 
                   // Progress Stats Banner
                   _buildProgressBanner(unlockedLevel, totalStars),
-
-                  const SizedBox(height: 10),
 
                   const SizedBox(height: 12),
 

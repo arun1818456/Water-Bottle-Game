@@ -31,10 +31,10 @@ class DailyRewardController extends GetxController {
   void _showStreakBrokenDialog() {
     Get.dialog(
       _StreakBrokenDialog(
-        onStartFresh: () {
+        onStartFresh: () async {
           AudioService.to.playButtonClick();
-          // Reset streak so Day 1 becomes active to redeem
-          storage.dailyStreak.value = 0;
+          // Reset streak and persisted claim date so Day 1 becomes active to redeem
+          await storage.resetDailyStreak();
           Get.back();
         },
       ),

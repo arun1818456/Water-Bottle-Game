@@ -17,6 +17,8 @@ class VictoryDialog extends StatefulWidget {
   final VoidCallback onHome;
   final bool showNextLevel;
   final bool showReplay;
+  final bool isTutorial;
+  final bool showCoins;
   final String homeLabel;
   final String title;
   final String subtitle;
@@ -31,10 +33,13 @@ class VictoryDialog extends StatefulWidget {
     required this.onHome,
     this.showNextLevel = true,
     this.showReplay = true,
+    this.isTutorial = false,
+    bool? showCoins,
     this.homeLabel = 'Levels',
     this.title = 'VICTORY!',
     String? subtitle,
-  }) : subtitle = subtitle ?? 'Level $levelId Cleared';
+  })  : showCoins = showCoins ?? (!isTutorial && baseCoins > 0),
+        subtitle = subtitle ?? 'Level $levelId Cleared';
 
   @override
   State<VictoryDialog> createState() => _VictoryDialogState();
@@ -177,51 +182,55 @@ class _VictoryDialogState extends State<VictoryDialog> {
               }),
             ),
 
-            const SizedBox(height: 24),
+            if (widget.showCoins) ...[
+              const SizedBox(height: 24),
 
-            // Coins earned badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: AppTheme.glassBox(
-                color: AppColors.glassFillHeavy,
-                borderRadius: 16,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.monetization_on_rounded, color: Color(0xFFFFD700), size: 28),
-                  const SizedBox(width: 8),
-                  Text(
-                    '+$_totalEarnedCoins Coins',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _doubleCoinsClaimed ? const Color(0xFFFFD700) : AppColors.textPrimary,
-                    ),
-                  ),
-                  if (_doubleCoinsClaimed) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF9100),
-                        borderRadius: BorderRadius.circular(8),
+              // Coins earned badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                decoration: AppTheme.glassBox(
+                  color: AppColors.glassFillHeavy,
+                  borderRadius: 16,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monetization_on_rounded, color: Color(0xFFFFD700), size: 28),
+                    const SizedBox(width: 8),
+                    Text(
+                      '+$_totalEarnedCoins Coins',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: _doubleCoinsClaimed ? const Color(0xFFFFD700) : AppColors.textPrimary,
                       ),
-                      child: const Text(
-                        '2X',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
+                    ),
+                    if (_doubleCoinsClaimed) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF9100),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          '2X',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ] else ...[
+              const SizedBox(height: 28),
+            ],
 
             // Double Coins Button (only shown if coins were earned and not yet claimed)
             if (!_doubleCoinsClaimed && widget.baseCoins > 0)
