@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_images.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/services/storage_service.dart';
 import '../../core/widgets/profile_auth_dialog.dart';
 import 'settings_controller.dart';
 
@@ -81,25 +82,10 @@ class _SettingsViewState extends State<SettingsView> {
 
                         const SizedBox(height: 18),
 
-                        // Section 0: Account & Profile
-                        _buildSectionLabel('ACCOUNT & PROFILE'),
+                        // Section 0: Account & Google Connect
+                        _buildSectionLabel('ACCOUNT & CLOUD BACKUP'),
                         const SizedBox(height: 8),
-                        _buildCardContainer([
-                          _buildNavActionRow(
-                            icon: Icons.account_circle_rounded,
-                            iconColor: const Color(0xFFFFD700),
-                            title: storage.getOrCreateUserName(),
-                            subtitle: storage.userEmail.value.isNotEmpty
-                                ? storage.userEmail.value
-                                : 'Guest Account (Tap to Edit Name / Login)',
-                            onTap: () {
-                              AudioService.to.playButtonClick();
-                              Get.dialog(const ProfileAuthDialog()).then((_) {
-                                setState(() {});
-                              });
-                            },
-                          ),
-                        ]),
+                        _buildAccountCard(storage),
 
                         const SizedBox(height: 18),
 
@@ -398,6 +384,381 @@ class _SettingsViewState extends State<SettingsView> {
         ],
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0);
+  }
+
+  /// Dedicated Google Sign-In, Sign-Up & Account Hub in Settings
+  Widget _buildAccountCard(StorageService storage) {
+    return Obx(() {
+      final isLoggedIn = storage.userEmail.value.isNotEmpty;
+      final email = storage.userEmail.value;
+      final photoUrl = storage.userPhotoUrl.value;
+      final flag = storage.userCountryFlag.value;
+      final userName = storage.getOrCreateUserName();
+      final avatarEmoji = storage.userAvatarEmoji.value;
+
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isLoggedIn
+                ? [
+                    const Color(0xFF0F3663).withValues(alpha: 0.9),
+                    const Color(0xFF0A2240).withValues(alpha: 0.9),
+                  ]
+                : [
+                    const Color(0xFF143767).withValues(alpha: 0.9),
+                    const Color(0xFF0C2448).withValues(alpha: 0.95),
+                  ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isLoggedIn
+                ? const Color(0xFF00E676).withValues(alpha: 0.45)
+                : const Color(0xFF4285F4).withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isLoggedIn
+                  ? const Color(0xFF00E676).withValues(alpha: 0.12)
+                  : const Color(0xFF4285F4).withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                if (isLoggedIn) ...[
+                  // Logged In State
+                  Row(
+                    children: [
+                      // Profile Picture or Avatar with Flag
+                      Stack(
+                        alignment: Alignment.bottomRight,
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF00E5FF), Color(0xFF00E676)],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF00E676).withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFF0A2244),
+                              ),
+                              child: ClipOval(
+                                child: photoUrl.isNotEmpty
+                                    ? Image.network(
+                                        photoUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => const Icon(
+                                          Icons.person_rounded,
+                                          color: Colors.white,
+                                          size: 30,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.person_rounded,
+                                        color: Colors.white,
+                                        size: 30,
+                                      ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: -2,
+                            right: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0A2244),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFF00E5FF),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                flag,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    userName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00E676).withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(0xFF00E676).withValues(alpha: 0.6),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 11,
+                                        color: Color(0xFF00E676),
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'SYNCED',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF00E676),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Manage / Sign Out CTA button
+                  GestureDetector(
+                    onTap: () {
+                      AudioService.to.playButtonClick();
+                      Get.dialog(const ProfileAuthDialog());
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.manage_accounts_rounded,
+                            size: 16,
+                            color: Color(0xFF00E5FF),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Manage Account / Sign Out',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF80D8FF),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // Guest / Sign Up State
+                  Row(
+                    children: [
+                      // Guest Avatar / Icon
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0E2A52),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF1E60A8),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            avatarEmoji,
+                            style: const TextStyle(fontSize: 26),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    userName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(flag, style: const TextStyle(fontSize: 14)),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFB300).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFFFFB300).withValues(alpha: 0.4),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: const Text(
+                                'GUEST PLAYER • NOT BACKED UP',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFFFD54F),
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Dedicated Sign In / Sign Up with Google Button
+                  GestureDetector(
+                    onTap: () {
+                      AudioService.to.playButtonClick();
+                      Get.dialog(const ProfileAuthDialog());
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF4285F4),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'G',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'SIGN UP / SIGN IN WITH GOOGLE',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1F2937),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Backup levels, coins, stars & unlock global rankings',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ).animate().fadeIn(duration: 450.ms).slideY(begin: 0.05, end: 0);
+    });
   }
 
   /// Section Label

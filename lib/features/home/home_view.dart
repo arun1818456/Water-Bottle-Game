@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:water_bottle_ais/core/constants/app_images.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/number_formatter.dart';
 import 'home_controller.dart';
 import 'widgets/interactive_water_drop.dart';
 
@@ -208,7 +209,7 @@ class _HomeViewState extends State<HomeView> {
                             const SizedBox(width: 10),
 
                             Text(
-                              '${storage.coins.value}',
+                              storage.coins.value.formatCompact,
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,

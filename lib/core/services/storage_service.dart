@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,8 +38,12 @@ class StorageService extends GetxService {
 
   static const String _keyUserId = 'asm_user_id';
   static const String _keyUserName = 'asm_user_name';
+  static const String _keyUserPhotoUrl = 'asm_user_photo_url';
   static const String _keyUserAvatar = 'asm_user_avatar';
   static const String _keyUserEmail = 'asm_user_email';
+  static const String _keyCountryFlag = 'asm_user_country_flag';
+  static const String _keyLastRank = 'asm_last_leaderboard_rank';
+  static const String _keyNotificationIndex = 'asm_notification_message_idx';
 
   // Reactive Observables for Real-time UI updates
   final RxInt coins = 100.obs;
@@ -54,7 +59,7 @@ class StorageService extends GetxService {
   final RxString equippedBackground = 'ocean'.obs;
 
   final RxBool soundEnabled = true.obs;
-  final RxBool musicEnabled = true.obs;
+  final RxMusicEnabled musicEnabled = RxMusicEnabled(true);
   final RxBool vibrationEnabled = true.obs;
 
   final RxInt dailyStreak = 0.obs;
@@ -110,12 +115,69 @@ class StorageService extends GetxService {
     // Load daily reward & streak
     dailyStreak.value = _prefs.getInt(_keyDailyStreak) ?? 0;
     lastDailyClaimDate.value = _prefs.getString(_keyDailyLastClaim) ?? '';
+
+    // Load user photo & email
+    userPhotoUrl.value = _prefs.getString(_keyUserPhotoUrl) ?? '';
+    userEmail.value = _prefs.getString(_keyUserEmail) ?? '';
+    userCountryFlag.value = getOrCreateCountryFlag();
   }
 
   // --- User Profile & Identification ---
 
   final RxString userAvatarEmoji = '🎮'.obs;
+  final RxString userPhotoUrl = ''.obs;
   final RxString userEmail = ''.obs;
+  final RxString userCountryFlag = '🌍'.obs;
+
+  /// Detects the user's country code from the device platform dispatcher
+  /// and converts it to a country flag emoji (e.g., 'IN' -> '🇮🇳', 'US' -> '🇺🇸').
+  String detectDeviceCountryFlag() {
+    try {
+      final locale = ui.PlatformDispatcher.instance.locale;
+      final countryCode = locale.countryCode?.toUpperCase();
+      if (countryCode != null && countryCode.length == 2) {
+        final firstChar = String.fromCharCode(0x1F1E6 + (countryCode.codeUnitAt(0) - 65));
+        final secondChar = String.fromCharCode(0x1F1E6 + (countryCode.codeUnitAt(1) - 65));
+        return '$firstChar$secondChar';
+      }
+    } catch (e) {
+      debugPrint('StorageService: detectDeviceCountryFlag error: $e');
+    }
+    return '🌍';
+  }
+
+  String getOrCreateCountryFlag() {
+    String? flag = _prefs.getString(_keyCountryFlag);
+    if (flag == null || flag.isEmpty || flag == '🇮🇳' && _prefs.getString(_keyCountryFlag) == null) {
+      flag = detectDeviceCountryFlag();
+      _prefs.setString(_keyCountryFlag, flag);
+    }
+    userCountryFlag.value = flag;
+    return flag;
+  }
+
+  Future<void> setUserCountryFlag(String flag) async {
+    if (flag.isEmpty) return;
+    userCountryFlag.value = flag;
+    await _prefs.setString(_keyCountryFlag, flag);
+    onDataChanged?.call();
+  }
+
+  int getLastLeaderboardRank() {
+    return _prefs.getInt(_keyLastRank) ?? 0;
+  }
+
+  Future<void> setLastLeaderboardRank(int rank) async {
+    await _prefs.setInt(_keyLastRank, rank);
+  }
+
+  int getNextNotificationIndex(int totalCount) {
+    if (totalCount <= 0) return 0;
+    final current = _prefs.getInt(_keyNotificationIndex) ?? 0;
+    final next = (current + 1) % totalCount;
+    _prefs.setInt(_keyNotificationIndex, next);
+    return current % totalCount;
+  }
 
   String getOrCreateUserId() {
     String? id = _prefs.getString(_keyUserId);
@@ -149,6 +211,12 @@ class StorageService extends GetxService {
   Future<void> setUserName(String newName) async {
     if (newName.trim().isEmpty) return;
     await _prefs.setString(_keyUserName, newName.trim());
+    onDataChanged?.call();
+  }
+
+  Future<void> setUserPhotoUrl(String url) async {
+    userPhotoUrl.value = url;
+    await _prefs.setString(_keyUserPhotoUrl, url);
     onDataChanged?.call();
   }
 
@@ -288,7 +356,7 @@ class StorageService extends GetxService {
       }
     }
 
-    // 11. User Name & Avatar
+    // 11. User Name & PhotoUrl
     if (data.containsKey('userName') && (data['userName'] as String).isNotEmpty) {
       final cloudName = data['userName'] as String;
       final currentName = getOrCreateUserName();
@@ -296,8 +364,11 @@ class StorageService extends GetxService {
         await _prefs.setString(_keyUserName, cloudName);
       }
     }
-    if (data.containsKey('avatarEmoji') && (data['avatarEmoji'] as String).isNotEmpty) {
-      await setUserAvatar(data['avatarEmoji'] as String);
+    if (data.containsKey('photoUrl') && (data['photoUrl'] as String).isNotEmpty) {
+      await setUserPhotoUrl(data['photoUrl'] as String);
+    }
+    if (data.containsKey('countryFlag') && (data['countryFlag'] as String).isNotEmpty) {
+      await setUserCountryFlag(data['countryFlag'] as String);
     }
 
     onDataChanged?.call();
@@ -523,5 +594,8 @@ class StorageService extends GetxService {
     vibrationEnabled.value = true;
     dailyStreak.value = 0;
     lastDailyClaimDate.value = '';
+    userPhotoUrl.value = '';
   }
 }
+
+typedef RxMusicEnabled = RxBool;

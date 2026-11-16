@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_images.dart';
+import '../../core/utils/number_formatter.dart';
 import '../game/models/bottle.dart';
 import '../game/widgets/bottle_painter.dart';
 import 'shop_controller.dart';
@@ -191,7 +192,7 @@ class _ShopViewState extends State<ShopView> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  '$coins',
+                  coins.formatCompact,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,

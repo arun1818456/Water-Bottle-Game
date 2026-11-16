@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../features/leaderboard/leaderboard_controller.dart';
-import '../constants/app_colors.dart';
 import '../services/audio_service.dart';
 import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
+import '../utils/number_formatter.dart';
 
-/// Modal dialog allowing user to edit display name, choose custom avatar,
-/// or connect / disconnect their Google Account via Firebase.
+/// Luxury Glassmorphic Google Account Hub Dialog
+/// Displays Google Profile, Cloud Sync status, Live Stats, and Account Connectivity
 class ProfileAuthDialog extends StatefulWidget {
   final int initialTab;
   const ProfileAuthDialog({super.key, this.initialTab = 0});
@@ -18,53 +18,8 @@ class ProfileAuthDialog extends StatefulWidget {
 
 class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
   final storage = StorageService.to;
-  late final TextEditingController _nameController;
-  late String _selectedEmoji;
-  int _selectedTab = 0; // 0 = Profile, 1 = Google Auth
   bool _isLoading = false;
   String? _errorMessage;
-
-  static const List<String> _avatars = [
-    '🎮', '🌊', '💧', '🧪', '👑', '🦁', '🦊', '🐯',
-    '🐉', '👸', '🤖', '🦄', '🦅', '🐺', '⚡', '🐬',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedTab = widget.initialTab;
-    _nameController = TextEditingController(text: storage.getOrCreateUserName());
-    _selectedEmoji = storage.getOrCreateUserAvatar();
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveProfile() async {
-    final newName = _nameController.text.trim();
-    if (newName.isEmpty) return;
-
-    AudioService.to.playButtonClick();
-    await storage.setUserName(newName);
-    await storage.setUserAvatar(_selectedEmoji);
-
-    if (Get.isRegistered<FirebaseService>()) {
-      await FirebaseService.to.syncUserData(force: true);
-    }
-
-    Get.back();
-    Get.snackbar(
-      'Profile Updated',
-      'Your display name and avatar have been saved!',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFF0F172A).withValues(alpha: 0.95),
-      colorText: Colors.white,
-      duration: const Duration(seconds: 2),
-    );
-  }
 
   Future<void> _handleGoogleSignIn() async {
     setState(() {
@@ -93,460 +48,611 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
         colorText: Colors.black,
         duration: const Duration(seconds: 3),
       );
-    } else {
+    } else if (err != 'Google Sign-In canceled.') {
       setState(() => _errorMessage = err);
     }
   }
 
+  Future<void> _handleSignOut() async {
+    AudioService.to.playButtonClick();
+    await FirebaseService.to.signOut();
+    if (Get.isRegistered<LeaderboardController>()) {
+      Get.find<LeaderboardController>().refreshLeaderboard(invalidateCache: true);
+    }
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentUserEmail = storage.userEmail.value;
-    final isLoggedIn = currentUserEmail.isNotEmpty;
+    return Obx(() {
+      final currentUserEmail = storage.userEmail.value;
+      final currentUserName = storage.getOrCreateUserName();
+      final currentPhotoUrl = storage.userPhotoUrl.value;
+      final currentFlag = storage.userCountryFlag.value;
+      final totalStars = storage.totalStarsCollected;
+      final totalCoins = storage.coins.value;
+      final unlockedLevel = storage.unlockedLevel.value;
+      final isLoggedIn = currentUserEmail.isNotEmpty;
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0E223D), Color(0xFF071324)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: const Color(0xFF00E5FF).withValues(alpha: 0.6),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF00E5FF).withValues(alpha: 0.25),
-              blurRadius: 24,
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 390),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF0E2442),
+                Color(0xFF07172B),
+                Color(0xFF040E1B),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
             ),
-            const BoxShadow(
-              color: Colors.black87,
-              blurRadius: 20,
-              offset: Offset(0, 10),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.55),
+              width: 1.5,
             ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.account_circle_rounded,
-                      color: Color(0xFF00E5FF),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'PLAYER PROFILE',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: const Icon(Icons.close_rounded, color: Colors.white70),
-                  ),
-                ],
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withValues(alpha: 0.22),
+                blurRadius: 30,
+                spreadRadius: 2,
               ),
-
-              const SizedBox(height: 16),
-
-              // Segmented Tab Bar (Profile Edit vs Google Auth)
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: Colors.black26,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Row(
-                  children: [
-                    _buildTabButton(0, 'Edit Name & Avatar'),
-                    _buildTabButton(1, isLoggedIn ? 'Google Account' : 'Google Sign In'),
-                  ],
-                ),
+              const BoxShadow(
+                color: Colors.black87,
+                blurRadius: 28,
+                offset: Offset(0, 12),
               ),
-
-              const SizedBox(height: 20),
-
-              // Tab 0: Edit Name & Choose Avatar
-              if (_selectedTab == 0) ...[
-                // Avatar Circle Picker
-                Center(
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(29),
+            child: Stack(
+              children: [
+                // Ambient Background Glows
+                Positioned(
+                  top: -50,
+                  right: -40,
                   child: Container(
-                    width: 72,
-                    height: 72,
+                    width: 160,
+                    height: 160,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF0F3A75),
-                      border: Border.all(color: const Color(0xFF00E5FF), width: 2.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
-                          blurRadius: 14,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        _selectedEmoji,
-                        style: const TextStyle(fontSize: 38),
-                      ),
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.12),
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 12),
-
-                // Avatar Grid Selector
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _avatars.map((emoji) {
-                    final isSelected = _selectedEmoji == emoji;
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() => _selectedEmoji = emoji);
-                        AudioService.to.playButtonClick();
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSelected
-                              ? const Color(0xFF00E5FF).withValues(alpha: 0.3)
-                              : Colors.white.withValues(alpha: 0.05),
-                          border: Border.all(
-                            color: isSelected ? const Color(0xFF00E5FF) : Colors.white24,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(emoji, style: const TextStyle(fontSize: 20)),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Name Input Field
-                TextField(
-                  controller: _nameController,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  decoration: InputDecoration(
-                    labelText: 'Player Display Name',
-                    labelStyle: const TextStyle(color: AppColors.primaryCyan),
-                    prefixIcon: const Icon(Icons.person_rounded, color: AppColors.primaryCyan),
-                    filled: true,
-                    fillColor: Colors.black38,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Colors.white24),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: Color(0xFF00E5FF), width: 1.5),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Save Profile CTA
-                GestureDetector(
-                  onTap: _saveProfile,
+                Positioned(
+                  bottom: -60,
+                  left: -50,
                   child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    width: 180,
+                    height: 180,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF00E5FF), Color(0xFF0072FF)],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'SAVE PROFILE',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF00E676).withValues(alpha: 0.08),
                     ),
                   ),
                 ),
-              ] else ...[
-                // Tab 1: Google Sign In / Account Status
-                if (isLoggedIn) ...[
-                  // Logged in Status Box
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00E676).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF00E676), width: 1.2),
-                    ),
+
+                // Main Content
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_circle_rounded, color: Color(0xFF00E676), size: 42),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'CONNECTED TO GOOGLE',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF00E676),
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          currentUserEmail,
-                          style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Your level progress, coins & stars are backed up automatically.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 18),
-                        GestureDetector(
-                          onTap: () async {
-                            await FirebaseService.to.signOut();
-                            if (Get.isRegistered<LeaderboardController>()) {
-                              Get.find<LeaderboardController>().refreshLeaderboard(invalidateCache: true);
-                            }
-                            setState(() {});
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF5252).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFFF5252)),
-                            ),
-                            child: const Text(
-                              'Sign Out From Google',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFF8A8A),
+                        // Header: Title Pill & Close Icon
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF0F3663), Color(0xFF0A2240)],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFF00E5FF).withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 18,
+                                    height: 18,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        'G',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF4285F4),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isLoggedIn ? 'GOOGLE PROFILE' : 'CONNECT ACCOUNT',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  // Google Sign-In Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'G',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF4285F4),
+                            GestureDetector(
+                              onTap: () {
+                                AudioService.to.playButtonClick();
+                                Get.back();
+                              },
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white12),
+                                ),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.white70,
+                                  size: 18,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-
-                        const SizedBox(height: 14),
-
-                        const Text(
-                          'ONE-TAP GOOGLE SIGN-IN',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        const Text(
-                          'Sign in with Google to save your level progress & coins to the cloud or restore your existing account data instantly!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            height: 1.4,
-                          ),
-                        ),
-
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFFF5252), fontWeight: FontWeight.bold),
-                          ),
-                        ],
 
                         const SizedBox(height: 20),
 
-                        GestureDetector(
-                          onTap: _isLoading ? null : _handleGoogleSignIn,
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.white.withValues(alpha: 0.25),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: _isLoading
-                                ? const Center(
-                                    child: SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
-                                      ),
+                        if (isLoggedIn) ...[
+                          // Profile Photo with Glow Ring & Country Flag Pill
+                          Stack(
+                            alignment: Alignment.bottomRight,
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 88,
+                                height: 88,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF00E5FF), Color(0xFF00E676)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF00E5FF).withValues(alpha: 0.45),
+                                      blurRadius: 18,
+                                      spreadRadius: 2,
                                     ),
-                                  )
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Color(0xFF4285F4),
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            'G',
-                                            style: TextStyle(
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(3),
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFF0A2244),
+                                  ),
+                                  child: ClipOval(
+                                    child: currentPhotoUrl.isNotEmpty
+                                        ? Image.network(
+                                            currentPhotoUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                const Icon(
+                                              Icons.person_rounded,
+                                              size: 52,
                                               color: Colors.white,
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 14,
                                             ),
+                                            loadingBuilder: (context, child, progress) {
+                                              if (progress == null) return child;
+                                              return const Center(
+                                                child: SizedBox(
+                                                  width: 26,
+                                                  height: 26,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                                        Color(0xFF00E5FF)),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          )
+                                        : const Icon(
+                                            Icons.person_rounded,
+                                            size: 52,
+                                            color: Colors.white,
                                           ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      const Text(
-                                        'SIGN IN WITH GOOGLE',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w900,
-                                          color: Color(0xFF1E293B),
-                                          letterSpacing: 0.8,
-                                        ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0A2244),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF00E5FF),
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.5),
+                                        blurRadius: 6,
                                       ),
                                     ],
                                   ),
+                                  child: Text(
+                                    currentFlag,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
+
+                          const SizedBox(height: 14),
+
+                          // Player Display Name
+                          Text(
+                            currentUserName,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          // Gmail Address Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.email_outlined, size: 13, color: Colors.white60),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    currentUserEmail,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Cloud Synced Status Chip
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFF00E676).withValues(alpha: 0.6),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.cloud_done_rounded, color: Color(0xFF00E676), size: 15),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Cloud Synced & Active',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF00E676),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // Live Game Stats Card Row
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            child: Row(
+                              children: [
+                                _buildStatColumn(
+                                  icon: Icons.military_tech_rounded,
+                                  iconColor: const Color(0xFF00E5FF),
+                                  value: 'Lvl $unlockedLevel',
+                                  label: 'Progress',
+                                ),
+                                _buildStatDivider(),
+                                _buildStatColumn(
+                                  icon: Icons.star_rounded,
+                                  iconColor: const Color(0xFFFFD700),
+                                  value: totalStars.formatCompact,
+                                  label: 'Stars',
+                                ),
+                                _buildStatDivider(),
+                                _buildStatColumn(
+                                  icon: Icons.monetization_on_rounded,
+                                  iconColor: const Color(0xFFFFB300),
+                                  value: totalCoins.formatCompact,
+                                  label: 'Coins',
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // Sign Out CTA Button
+                          GestureDetector(
+                            onTap: _handleSignOut,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF5252).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFFFF5252).withValues(alpha: 0.65),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.logout_rounded,
+                                    color: Color(0xFFFF8A8A),
+                                    size: 16,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Sign Out From Google',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFFF8A8A),
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          // Not Logged In View
+                          Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  blurRadius: 18,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'G',
+                                style: TextStyle(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF4285F4),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          const Text(
+                            'SIGN IN WITH GOOGLE',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            'Connect your Google Account to automatically backup your levels, stars & coins to the cloud and show your real rank on global leaderboards!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.72),
+                              height: 1.45,
+                            ),
+                          ),
+
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF5252).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFFF5252)),
+                              ),
+                              child: Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFFF8A8A),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 22),
+
+                          // Google Sign-In Button
+                          GestureDetector(
+                            onTap: _isLoading ? null : _handleGoogleSignIn,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: _isLoading
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
+                                        ),
+                                      ),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 24,
+                                          height: 24,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Color(0xFF4285F4),
+                                          ),
+                                          child: const Center(
+                                            child: Text(
+                                              'G',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text(
+                                          'CONTINUE WITH GOOGLE',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF1E293B),
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ],
+                ),
               ],
-            ],
+            ),
           ),
         ),
+      );
+    });
+  }
+
+  Widget _buildStatColumn({
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String label,
+  }) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTabButton(int index, String title) {
-    final isSelected = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedTab = index;
-            _errorMessage = null;
-          });
-          AudioService.to.playButtonClick();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF00E5FF) : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                color: isSelected ? Colors.black : Colors.white70,
-              ),
-            ),
-          ),
-        ),
-      ),
+  Widget _buildStatDivider() {
+    return Container(
+      width: 1,
+      height: 28,
+      color: Colors.white.withValues(alpha: 0.12),
     );
   }
 }

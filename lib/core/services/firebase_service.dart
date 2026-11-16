@@ -57,10 +57,13 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       _auth?.authStateChanges().listen((user) async {
         if (user != null) {
           if (user.email != null && user.email!.isNotEmpty) {
-            StorageService.to.setUserEmail(user.email!);
+            await StorageService.to.setUserEmail(user.email!);
           }
           if (user.displayName != null && user.displayName!.isNotEmpty) {
-            StorageService.to.setUserName(user.displayName!);
+            await StorageService.to.setUserName(user.displayName!);
+          }
+          if (user.photoURL != null && user.photoURL!.isNotEmpty) {
+            await StorageService.to.setUserPhotoUrl(user.photoURL!);
           }
           // On app launch with existing signed-in user, fetch and restore cloud data first!
           await restoreCloudData();
@@ -157,15 +160,16 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       final storage = StorageService.to;
       final userId = currentUser?.uid ?? storage.getOrCreateUserId();
       final userName = storage.getOrCreateUserName();
-      final userAvatar = storage.getOrCreateUserAvatar();
+      final userPhoto = storage.userPhotoUrl.value;
       final totalStars = storage.totalStarsCollected;
 
       // Complete compact payload in a single document
       final Map<String, dynamic> data = {
         'userId': userId,
         'userName': userName,
-        'avatarEmoji': userAvatar,
-        'countryFlag': '🇮🇳',
+        'photoUrl': userPhoto,
+        'avatarEmoji': '🎮',
+        'countryFlag': storage.getOrCreateCountryFlag(),
         'email': storage.userEmail.value,
         'coins': storage.coins.value,
         'unlockedLevel': storage.unlockedLevel.value,
@@ -223,8 +227,13 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         final displayName = (user.displayName != null && user.displayName!.isNotEmpty)
             ? user.displayName!
             : 'Player';
+        final photoUrl = user.photoURL ?? '';
 
         await StorageService.to.setUserEmail(email);
+        await StorageService.to.setUserName(displayName);
+        if (photoUrl.isNotEmpty) {
+          await StorageService.to.setUserPhotoUrl(photoUrl);
+        }
 
         // Check if user already has cloud progress in Firestore
         final userDocRef = _db!.collection('users').doc(userId);
@@ -238,9 +247,6 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
           debugPrint('FirebaseService: Cloud data merged and restored for $userId.');
         } else {
           // NEW USER: Initial cloud profile created with current local progress
-          if (StorageService.to.getOrCreateUserName().startsWith('Player_')) {
-            await StorageService.to.setUserName(displayName);
-          }
           await syncUserData(force: true);
           debugPrint('FirebaseService: New cloud profile created for $userId.');
         }
@@ -266,6 +272,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       await googleSignIn.signOut();
       await _auth?.signOut();
       await StorageService.to.setUserEmail('');
+      await StorageService.to.setUserPhotoUrl('');
       invalidateLeaderboardCache();
     } catch (e) {
       debugPrint('FirebaseService: signOut error: $e');
@@ -321,6 +328,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
         final uId = data['userId'] as String? ?? doc.id;
         final name = data['userName'] as String? ?? 'Player';
+        final photo = data['photoUrl'] as String? ?? '';
         final emoji = data['avatarEmoji'] as String? ?? '🎮';
         final flag = data['countryFlag'] as String? ?? '🇮🇳';
         final stars = data['totalStars'] as int? ?? 0;
@@ -331,6 +339,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         users.add(LeaderboardUser(
           rank: i + 1,
           name: isCurrent ? '$name (You)' : name,
+          photoUrl: photo,
           avatarEmoji: emoji,
           countryFlag: flag,
           stars: stars,
@@ -345,7 +354,8 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         final myStars = storage.totalStarsCollected;
         final myLevel = storage.unlockedLevel.value;
         final myName = storage.getOrCreateUserName();
-        final myAvatar = storage.getOrCreateUserAvatar();
+        final myPhoto = storage.userPhotoUrl.value;
+        final myFlag = storage.getOrCreateCountryFlag();
 
         int insertIndex = users.indexWhere((u) => u.stars <= myStars);
         if (insertIndex == -1) insertIndex = users.length;
@@ -355,8 +365,9 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
           LeaderboardUser(
             rank: insertIndex + 1,
             name: '$myName (You)',
-            avatarEmoji: myAvatar,
-            countryFlag: '🇮🇳',
+            photoUrl: myPhoto,
+            avatarEmoji: '🎮',
+            countryFlag: myFlag,
             stars: myStars,
             level: myLevel,
             isCurrentUser: true,
@@ -369,6 +380,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
           users[j] = LeaderboardUser(
             rank: j + 1,
             name: u.name,
+            photoUrl: u.photoUrl,
             avatarEmoji: u.avatarEmoji,
             countryFlag: u.countryFlag,
             stars: u.stars,

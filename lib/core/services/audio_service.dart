@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../constants/assets_constants.dart';
+import 'notification_service.dart';
 import 'storage_service.dart';
 
 /// AudioService manages background music and sound effects using audioplayers.
@@ -183,12 +184,18 @@ class AudioService extends GetxService with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         resumeBackgroundMusic();
+        if (Get.isRegistered<NotificationService>()) {
+          NotificationService.to.cancelReminder();
+        }
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         pauseAllAudio();
+        if (Get.isRegistered<NotificationService>()) {
+          NotificationService.to.schedule13HourReminder();
+        }
         break;
     }
   }

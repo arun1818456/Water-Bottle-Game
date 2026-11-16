@@ -6,6 +6,7 @@ import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/number_formatter.dart';
 
 /// Victory celebration popup modal
 class VictoryDialog extends StatefulWidget {
@@ -198,7 +199,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
                     const Icon(Icons.monetization_on_rounded, color: Color(0xFFFFD700), size: 28),
                     const SizedBox(width: 8),
                     Text(
-                      '+$_totalEarnedCoins Coins',
+                      '+${_totalEarnedCoins.formatCompact} Coins',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

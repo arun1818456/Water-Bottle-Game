@@ -5,6 +5,7 @@ import 'core/constants/app_constants.dart';
 import 'core/services/ads_service.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/firebase_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily_reward/daily_reward_view.dart';
@@ -42,6 +43,7 @@ void main() async {
 
   // Initialize Core Services
   await Get.putAsync(() => StorageService().init());
+  await Get.putAsync(() => NotificationService().init());
   await Get.putAsync(() => AudioService().init());
   await Get.putAsync(() => AdsService().init());
   await Get.putAsync(() => FirebaseService().init());

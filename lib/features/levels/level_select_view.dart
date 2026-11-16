@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_images.dart';
+import '../../core/utils/number_formatter.dart';
 import 'level_controller.dart';
 
 /// Modern High-Aesthetic Level Select Screen
@@ -205,7 +206,7 @@ class _LevelSelectViewState extends State<LevelSelectView> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  '$coins',
+                  coins.formatCompact,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -312,7 +313,7 @@ class _LevelSelectViewState extends State<LevelSelectView> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '$totalStars',
+                    totalStars.formatCompact,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
@@ -320,7 +321,7 @@ class _LevelSelectViewState extends State<LevelSelectView> {
                     ),
                   ),
                   Text(
-                    '/$maxStars',
+                    '/${maxStars.formatCompact}',
                     style: const TextStyle(
                       fontSize: 10,
                       color: Colors.white54,

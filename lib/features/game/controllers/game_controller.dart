@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:water_bottle_ais/core/services/firebase_service.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
@@ -450,6 +451,11 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       }
 
       await StorageService.to.completeLevel(levelId.value, stars);
+
+      // Invalidate leaderboard cache so next time leaderboard opens it reflects updated stars
+      if (Get.isRegistered<FirebaseService>()) {
+        FirebaseService.to.invalidateLeaderboardCache();
+      }
     }
 
     // Show Interstitial ad if eligible (every 4 levels)
