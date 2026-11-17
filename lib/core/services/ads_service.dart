@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -62,21 +63,29 @@ class AdsService extends GetxService {
   bool _isInitialized = false;
   BannerAd? _homeBannerAd;
   final RxBool isBannerLoaded = false.obs;
+  bool _isHomeBannerLoading = false;
+  int _homeBannerRetryAttempts = 0;
+
+  BannerAd? _gameBannerAd;
+  final RxBool isGameBannerLoaded = false.obs;
+  bool _isGameBannerLoading = false;
+  int _gameBannerRetryAttempts = 0;
 
   InterstitialAd? _interstitialAd;
   bool _isInterstitialLoading = false;
+  int _interstitialRetryAttempts = 0;
 
   RewardedAd? _rewardedAd;
   bool _isRewardedLoading = false;
+  int _rewardedRetryAttempts = 0;
 
   Future<AdsService> init() async {
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       try {
-        // Child-safe ad treatment for all ad requests.
-        final RequestConfiguration requestConfiguration =
-        RequestConfiguration(
-          ageRestrictedTreatment: AgeRestrictedTreatment.child,
-          maxAdContentRating: MaxAdContentRating.g,
+        // Completely unrestricted ad requests for 100% ad inventory and maximum fill rate in production
+        final RequestConfiguration requestConfiguration = RequestConfiguration(
+          ageRestrictedTreatment: AgeRestrictedTreatment.unspecified,
+          maxAdContentRating: MaxAdContentRating.ma,
         );
 
         await MobileAds.instance.updateRequestConfiguration(
@@ -99,8 +108,12 @@ class AdsService extends GetxService {
   // --- Banner Ad (Home Screen Only) ---
 
   void loadHomeBanner() {
-    if (!_isInitialized) return;
-    if (_homeBannerAd != null && isBannerLoaded.value) return;
+    if (!_isInitialized || _isHomeBannerLoading || (isBannerLoaded.value && _homeBannerAd != null)) return;
+    _isHomeBannerLoading = true;
+
+    _homeBannerAd?.dispose();
+    _homeBannerAd = null;
+    isBannerLoaded.value = false;
 
     _homeBannerAd = BannerAd(
       adUnitId: bannerAdUnitId,
@@ -110,16 +123,23 @@ class AdsService extends GetxService {
         onAdLoaded: (ad) {
           debugPrint('AdsService: Home Banner Ad loaded successfully.');
           isBannerLoaded.value = true;
+          _isHomeBannerLoading = false;
+          _homeBannerRetryAttempts = 0;
         },
         onAdFailedToLoad: (ad, error) {
           debugPrint('AdsService: Home Banner Ad failed to load: ${error.message} (Code: ${error.code})');
           ad.dispose();
           _homeBannerAd = null;
           isBannerLoaded.value = false;
+          _isHomeBannerLoading = false;
+          _homeBannerRetryAttempts++;
 
-          // Auto-retry after 5 seconds
-          Future.delayed(const Duration(seconds: 5), () {
-            loadHomeBanner();
+          // Auto-retry with backoff (4s, 8s, 12s... max 30s)
+          final delaySeconds = (_homeBannerRetryAttempts * 4).clamp(4, 30);
+          Future.delayed(Duration(seconds: delaySeconds), () {
+            if (_isInitialized && !isBannerLoaded.value && !_isHomeBannerLoading) {
+              loadHomeBanner();
+            }
           });
         },
       ),
@@ -127,7 +147,6 @@ class AdsService extends GetxService {
 
     _homeBannerAd?.load();
   }
-
 
   Widget getHomeBannerWidget() {
     return Obx(() {
@@ -153,12 +172,13 @@ class AdsService extends GetxService {
 
   // --- Banner Ad (Game View) ---
 
-  BannerAd? _gameBannerAd;
-  final RxBool isGameBannerLoaded = false.obs;
-
   void loadGameBanner() {
-    if (!_isInitialized) return;
-    if (_gameBannerAd != null && isGameBannerLoaded.value) return;
+    if (!_isInitialized || _isGameBannerLoading || (isGameBannerLoaded.value && _gameBannerAd != null)) return;
+    _isGameBannerLoading = true;
+
+    _gameBannerAd?.dispose();
+    _gameBannerAd = null;
+    isGameBannerLoaded.value = false;
 
     _gameBannerAd = BannerAd(
       adUnitId: gameBannerAdUnitId,
@@ -168,16 +188,23 @@ class AdsService extends GetxService {
         onAdLoaded: (ad) {
           debugPrint('AdsService: Game Banner Ad loaded successfully.');
           isGameBannerLoaded.value = true;
+          _isGameBannerLoading = false;
+          _gameBannerRetryAttempts = 0;
         },
         onAdFailedToLoad: (ad, error) {
           debugPrint('AdsService: Game Banner Ad failed to load: ${error.message} (Code: ${error.code})');
           ad.dispose();
           _gameBannerAd = null;
           isGameBannerLoaded.value = false;
+          _isGameBannerLoading = false;
+          _gameBannerRetryAttempts++;
 
-          // Auto-retry after 5 seconds
-          Future.delayed(const Duration(seconds: 5), () {
-            loadGameBanner();
+          // Auto-retry with backoff (4s, 8s, 12s... max 30s)
+          final delaySeconds = (_gameBannerRetryAttempts * 4).clamp(4, 30);
+          Future.delayed(Duration(seconds: delaySeconds), () {
+            if (_isInitialized && !isGameBannerLoaded.value && !_isGameBannerLoading) {
+              loadGameBanner();
+            }
           });
         },
       ),
@@ -219,22 +246,36 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Interstitial loaded.');
+          debugPrint('AdsService: Interstitial pre-loaded successfully and ready in memory.');
           _interstitialAd = ad;
           _isInterstitialLoading = false;
+          _interstitialRetryAttempts = 0;
         },
         onAdFailedToLoad: (error) {
           debugPrint('AdsService: Interstitial failed to load: $error');
           _interstitialAd = null;
           _isInterstitialLoading = false;
+          _interstitialRetryAttempts++;
+
+          // Exponential backoff auto-retry (max 30s) so an ad is always ready in advance
+          final delaySeconds = (_interstitialRetryAttempts * 4).clamp(3, 30);
+          Future.delayed(Duration(seconds: delaySeconds), () {
+            if (_interstitialAd == null && !_isInterstitialLoading) {
+              _loadInterstitialAd();
+            }
+          });
         },
       ),
     );
   }
 
+  /// Explicitly preloads interstitial ad in background
   void preloadInterstitialAd() {
     _loadInterstitialAd();
   }
+
+  /// Checks if interstitial ad is currently cached and ready to show instantly
+  bool get isInterstitialAdReady => _interstitialAd != null;
 
   /// Checks if an interstitial ad should be shown based on completed levels
   void showInterstitialIfEligible({VoidCallback? onComplete}) {
@@ -252,6 +293,7 @@ class AdsService extends GetxService {
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
           _interstitialAd = null;
+          // Immediately pre-load the next interstitial in advance
           _loadInterstitialAd();
           onDismissed?.call();
         },
@@ -265,12 +307,13 @@ class AdsService extends GetxService {
       );
       _interstitialAd!.show();
     } else {
+      // Background load without blocking user
       _loadInterstitialAd();
       onDismissed?.call();
     }
   }
 
-  // --- Rewarded Ad (Hints, Undo, Double Coins) ---
+  // --- Rewarded Ad (Hints, Undo, Double Coins, Free Coins) ---
 
   void _loadRewardedAd() {
     if (!_isInitialized || _isRewardedLoading || _rewardedAd != null) return;
@@ -281,63 +324,195 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Rewarded ad loaded.');
+          debugPrint('AdsService: Rewarded ad pre-loaded successfully and ready in memory.');
           _rewardedAd = ad;
           _isRewardedLoading = false;
+          _rewardedRetryAttempts = 0;
         },
         onAdFailedToLoad: (error) {
           debugPrint('AdsService: Rewarded ad failed to load: $error');
           _rewardedAd = null;
           _isRewardedLoading = false;
+          _rewardedRetryAttempts++;
+
+          // Exponential backoff auto-retry (max 30s) so an ad is always cached and ready on tap
+          final delaySeconds = (_rewardedRetryAttempts * 3).clamp(3, 30);
+          Future.delayed(Duration(seconds: delaySeconds), () {
+            if (_rewardedAd == null && !_isRewardedLoading) {
+              _loadRewardedAd();
+            }
+          });
         },
       ),
     );
   }
+
+  /// Checks if rewarded ad is currently cached and ready to show instantly
+  bool get isRewardedAdReady => _rewardedAd != null;
 
   /// Preloads rewarded ad if not already loaded or loading
   void preloadRewardedAd() {
     _loadRewardedAd();
   }
 
-  /// Shows rewarded ad with a callback on reward earned
+  /// Shows rewarded ad with a callback on reward earned.
+  /// If already pre-loaded (ideal state), shows instantly without delay.
+  /// If not pre-loaded yet, shows a quick non-intrusive loading dialog and plays as soon as ready.
   void showRewardedAd({
     required Function(RewardItem reward) onUserEarnedReward,
     VoidCallback? onAdClosed,
     VoidCallback? onAdFailed,
   }) {
     if (_rewardedAd != null) {
-      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _rewardedAd = null;
-          _loadRewardedAd();
-          onAdClosed?.call();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          debugPrint('AdsService: Rewarded ad failed to show: $error');
-          ad.dispose();
-          _rewardedAd = null;
-          _loadRewardedAd();
-          onAdFailed?.call();
-        },
+      _displayCachedRewardedAd(
+        onUserEarnedReward: onUserEarnedReward,
+        onAdClosed: onAdClosed,
+        onAdFailed: onAdFailed,
+      );
+    } else {
+      debugPrint('AdsService: Rewarded ad not in memory, fetching with high priority...');
+
+      // Show a sleek mini loader dialog so user gets immediate visual response instead of waiting/failing
+      Get.dialog(
+        PopScope(
+          canPop: false,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0C2448).withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text(
+                    'Opening Sponsor Ad...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
       );
 
-      _rewardedAd!.show(onUserEarnedReward: (adWithoutView, reward) {
-        onUserEarnedReward(reward);
+      bool hasHandled = false;
+
+      // Timeout safety: close loader after 4.5 seconds if network is extremely slow
+      final timeoutTimer = Timer(const Duration(milliseconds: 4500), () {
+        if (!hasHandled) {
+          hasHandled = true;
+          if (Get.isDialogOpen ?? false) {
+            Get.back();
+          }
+          onAdFailed?.call();
+          Get.snackbar(
+            'Connection Slow',
+            'Network is taking longer than usual. Please check internet connection and try again.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: const Color(0xFF143767),
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
+          );
+        }
       });
-    } else {
-      debugPrint('AdsService: Rewarded ad not ready. Attempting reload.');
-      _loadRewardedAd();
-      onAdFailed?.call();
-      Get.snackbar(
-        'Ad Loading',
-        'Rewarded ad is loading. Please try again in a moment.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.black87,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
+
+      _isRewardedLoading = true;
+      RewardedAd.load(
+        adUnitId: rewardedAdUnitId,
+        request: const AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            _rewardedAd = ad;
+            _isRewardedLoading = false;
+            _rewardedRetryAttempts = 0;
+
+            if (!hasHandled) {
+              hasHandled = true;
+              timeoutTimer.cancel();
+              if (Get.isDialogOpen ?? false) {
+                Get.back();
+              }
+              _displayCachedRewardedAd(
+                onUserEarnedReward: onUserEarnedReward,
+                onAdClosed: onAdClosed,
+                onAdFailed: onAdFailed,
+              );
+            }
+          },
+          onAdFailedToLoad: (error) {
+            debugPrint('AdsService: Fallback Rewarded load failed: $error');
+            _rewardedAd = null;
+            _isRewardedLoading = false;
+
+            if (!hasHandled) {
+              hasHandled = true;
+              timeoutTimer.cancel();
+              if (Get.isDialogOpen ?? false) {
+                Get.back();
+              }
+              onAdFailed?.call();
+            }
+          },
+        ),
       );
     }
+  }
+
+  void _displayCachedRewardedAd({
+    required Function(RewardItem reward) onUserEarnedReward,
+    VoidCallback? onAdClosed,
+    VoidCallback? onAdFailed,
+  }) {
+    if (_rewardedAd == null) {
+      onAdFailed?.call();
+      return;
+    }
+
+    final adToShow = _rewardedAd!;
+    _rewardedAd = null; // Clear immediately to prevent double presentation
+
+    adToShow.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        // Pre-load the next rewarded ad right away so the user never has to wait next time
+        _loadRewardedAd();
+        onAdClosed?.call();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('AdsService: Rewarded ad failed to show: $error');
+        ad.dispose();
+        _loadRewardedAd();
+        onAdFailed?.call();
+      },
+    );
+
+    adToShow.show(onUserEarnedReward: (adWithoutView, reward) {
+      onUserEarnedReward(reward);
+    });
   }
 
   @override

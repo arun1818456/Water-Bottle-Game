@@ -3,7 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:water_bottle_ais/core/constants/app_images.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/audio_service.dart';
 import '../../core/utils/number_formatter.dart';
+import '../../core/widgets/free_coins_dialog.dart';
 import 'home_controller.dart';
 import 'widgets/interactive_water_drop.dart';
 
@@ -146,105 +148,114 @@ class _HomeViewState extends State<HomeView> {
                       ),
                     ),
 
-                    // 🪙 Coins Counter
-                    Obx(
-                          () => Container(
-                        padding: const EdgeInsets.only(
-                          left: 8,
-                          top: 6,
-                          bottom: 6,
-                          right: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF14529B), Color(0xFF0B3B80)],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
+                    // 🪙 Coins Counter (Tapping + or pill opens Free Coins Rewarded Ad dialog)
+                    GestureDetector(
+                      onTap: () {
+                        AudioService.to.playButtonClick();
+                        Get.dialog(
+                          const FreeCoinsDialog(),
+                          barrierDismissible: true,
+                        );
+                      },
+                      child: Obx(
+                        () => Container(
+                          padding: const EdgeInsets.only(
+                            left: 8,
+                            top: 6,
+                            bottom: 6,
+                            right: 6,
                           ),
-                          border: Border.all(
-                            color: const Color(0xFF20D9FF),
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(40),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xFF00CFFF,
-                              ).withValues(alpha: 0.18),
-                              blurRadius: 10,
-                              spreadRadius: 1,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF14529B), Color(0xFF0B3B80)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Coin Icon
-                            Container(
-                              width: 25,
-                              height: 25,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFFFFD700),
-                                border: Border.all(
-                                  color: const Color(0xFFFFE66D),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFFFFD700,
-                                    ).withValues(alpha: 0.35),
-                                    blurRadius: 6,
+                            border: Border.all(
+                              color: const Color(0xFF20D9FF),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(40),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF00CFFF,
+                                ).withValues(alpha: 0.18),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Coin Icon
+                              Container(
+                                width: 25,
+                                height: 25,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFFFFD700),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFE66D),
+                                    width: 2,
                                   ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.monetization_on_rounded,
-                                color: Color(0xFFFFA000),
-                                size: 20,
-                              ),
-                            ),
-
-                            const SizedBox(width: 10),
-
-                            Text(
-                              storage.coins.value.formatCompact,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-
-                            const SizedBox(width: 10),
-
-                            // Plus Button
-                            Container(
-                              width: 25,
-                              height: 25,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF2196F3),
-                                    Color(0xFF0752C7),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFFFD700,
+                                      ).withValues(alpha: 0.35),
+                                      blurRadius: 6,
+                                    ),
                                   ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
                                 ),
-                                border: Border.all(
-                                  color: const Color(0xFF40DFFF),
-                                  width: 1.5,
+                                child: const Icon(
+                                  Icons.monetization_on_rounded,
+                                  color: Color(0xFFFFA000),
+                                  size: 20,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.add_rounded,
-                                color: Colors.white,
-                                size: 20,
+
+                              const SizedBox(width: 10),
+
+                              Text(
+                                storage.coins.value.formatCompact,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                          ],
+
+                              const SizedBox(width: 10),
+
+                              // Plus Button
+                              Container(
+                                width: 25,
+                                height: 25,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF2196F3),
+                                      Color(0xFF0752C7),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                  border: Border.all(
+                                    color: const Color(0xFF40DFFF),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
