@@ -39,6 +39,16 @@ class LeaderboardController extends GetxController {
   final RxInt previousUserRank = 0.obs;
   final RxBool hasRankClimbed = false.obs;
 
+  /// Stars the current user still needs to overtake the player directly above them (0 when #1).
+  final RxInt starsToNextRank = 0.obs;
+
+  /// Current user's resolved level (max of local and cloud).
+  final RxInt userLevel = 1.obs;
+
+  // Guards against overlapping loads (e.g. onInit + view refresh + dialog refresh firing together)
+  bool _isFetching = false;
+  bool _reloadPending = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -46,12 +56,32 @@ class LeaderboardController extends GetxController {
   }
 
   Future<void> _loadLeaderboardData({bool silent = false}) async {
+    if (_isFetching) {
+      // Re-run once after the in-flight load so the latest state (e.g. fresh login) is applied
+      _reloadPending = true;
+      return;
+    }
+    _isFetching = true;
+    try {
+      await _performLoad(silent: silent);
+    } finally {
+      _isFetching = false;
+      isLoading.value = false;
+    }
+    if (_reloadPending) {
+      _reloadPending = false;
+      await _loadLeaderboardData(silent: true);
+    }
+  }
+
+  Future<void> _performLoad({required bool silent}) async {
     // Only show full-screen loader if we have zero cached players in memory
     if (!silent && leaderboardUsers.isEmpty) {
       isLoading.value = true;
     }
 
     userTotalStars.value = storage.totalStarsCollected;
+    userLevel.value = storage.unlockedLevel.value;
 
     final firebaseService = Get.isRegistered<FirebaseService>() ? FirebaseService.to : null;
     final loggedIn = (firebaseService?.isUserLoggedIn ?? false) || storage.userEmail.value.isNotEmpty;
@@ -61,7 +91,8 @@ class LeaderboardController extends GetxController {
     if (!loggedIn) {
       leaderboardUsers.clear();
       currentUserRank.value = 0;
-      isLoading.value = false;
+      starsToNextRank.value = 0;
+      hasRankClimbed.value = false;
       return;
     }
 
@@ -88,8 +119,6 @@ class LeaderboardController extends GetxController {
         _setSingleUserLeaderboard();
       }
     }
-
-    isLoading.value = false;
   }
 
   void _setSingleUserLeaderboard() {
@@ -108,6 +137,7 @@ class LeaderboardController extends GetxController {
     );
     leaderboardUsers.assignAll([user]);
     currentUserRank.value = 1;
+    starsToNextRank.value = 0;
   }
 
   void _setOnlineLeaderboard(List<LeaderboardUser> onlineUsers) {
@@ -180,14 +210,27 @@ class LeaderboardController extends GetxController {
       );
     }
 
-    // Check rank climbing effect
+    // Check rank climbing effect.
+    // Keep an already-detected climb visible while the rank is unchanged, otherwise the
+    // immediate follow-up refresh (saved rank == new rank) would wipe the celebration.
     final lastRank = storage.getLastLeaderboardRank();
     if (lastRank > 0 && userRank < lastRank) {
       previousUserRank.value = lastRank;
       hasRankClimbed.value = true;
-    } else {
+    } else if (userRank != lastRank) {
       hasRankClimbed.value = false;
       previousUserRank.value = userRank;
+    }
+
+    // Keep the sticky bottom bar consistent with the resolved list entry
+    final me = updatedList[userRank - 1];
+    userTotalStars.value = me.stars;
+    userLevel.value = me.level;
+    if (userRank > 1) {
+      final gap = updatedList[userRank - 2].stars - me.stars;
+      starsToNextRank.value = gap < 0 ? 0 : gap + 1;
+    } else {
+      starsToNextRank.value = 0;
     }
 
     storage.setLastLeaderboardRank(userRank);
@@ -200,11 +243,11 @@ class LeaderboardController extends GetxController {
     Get.back();
   }
 
-  void refreshLeaderboard({bool invalidateCache = false}) {
+  Future<void> refreshLeaderboard({bool invalidateCache = false}) {
     if (invalidateCache && Get.isRegistered<FirebaseService>()) {
       FirebaseService.to.invalidateLeaderboardCache();
     }
     // Silent refresh so that existing leaderboard data remains visible without flashing a loader
-    _loadLeaderboardData(silent: leaderboardUsers.isNotEmpty);
+    return _loadLeaderboardData(silent: leaderboardUsers.isNotEmpty);
   }
 }

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_screen_background.dart';
+import '../../core/widgets/pressable_scale.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/app_images.dart';
 import '../../core/utils/number_formatter.dart';
 import 'daily_reward_controller.dart';
 
@@ -33,27 +34,7 @@ class _DailyRewardViewState extends State<DailyRewardView> {
       body: Stack(
         children: [
           // Background with rich ambient overlay
-          Positioned.fill(
-            child: Image.asset(
-              AppImages.backGround,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF07152B).withValues(alpha: 0.90),
-                    const Color(0xFF091F3D).withValues(alpha: 0.94),
-                    const Color(0xFF050E1B).withValues(alpha: 0.97),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
+          const Positioned.fill(child: AppScreenBackground()),
 
           SafeArea(
             child: Obx(() {
@@ -140,7 +121,7 @@ class _DailyRewardViewState extends State<DailyRewardView> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Glass Back Button
-          GestureDetector(
+          PressableScale(
             onTap: () => Get.back(),
             child: Container(
               width: 42,

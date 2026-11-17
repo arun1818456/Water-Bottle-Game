@@ -8,41 +8,40 @@ import '../constants/app_constants.dart';
 import 'storage_service.dart';
 
 /// Reusable Google Mobile Ads service managing Banners, Interstitials, and Rewarded ads.
-/// Configured with official Google test ad unit IDs. Replace with your production IDs before store submission.
+/// Debug builds use Google's official test ad unit IDs; release builds use production IDs.
 class AdsService extends GetxService {
   static AdsService get to => Get.find<AdsService>();
 
   static String get bannerAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if(kDebugMode){
+      if (kDebugMode) {
         return 'ca-app-pub-3940256099942544/6300978111';
       }
       return 'ca-app-pub-4886824424959094/2276252420'; //original
-    } else if (Platform.isIOS) {
     }
+    // iOS: no production unit configured yet
     return '';
   }
 
   static String get gameBannerAdUnitId {
+    if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if(kDebugMode){
+      if (kDebugMode) {
         return 'ca-app-pub-3940256099942544/6300978111';
       }
       return 'ca-app-pub-4886824424959094/9522410959'; //original
-    } else if (Platform.isIOS) {
     }
-    return "";
+    return '';
   }
 
   static String get interstitialAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if(kDebugMode){
+      if (kDebugMode) {
         return 'ca-app-pub-3940256099942544/1033173712';
       }
       return 'ca-app-pub-4886824424959094/7105907276'; //original
-    } else if (Platform.isIOS) {
     }
     return '';
   }
@@ -50,195 +49,158 @@ class AdsService extends GetxService {
   static String get rewardedAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if(kDebugMode){
+      if (kDebugMode) {
         return 'ca-app-pub-3940256099942544/5224354917';
       }
-      return 'ca-app-pub-4886824424959094/8315047168';//original
-    } else if (Platform.isIOS) {
+      return 'ca-app-pub-4886824424959094/8315047168'; //original
     }
     return '';
   }
 
-  // State
-  bool _isInitialized = false;
-  BannerAd? _homeBannerAd;
-  final RxBool isBannerLoaded = false.obs;
-  bool _isHomeBannerLoading = false;
-  int _homeBannerRetryAttempts = 0;
+  // --- Tuning ---
 
-  BannerAd? _gameBannerAd;
-  final RxBool isGameBannerLoaded = false.obs;
-  bool _isGameBannerLoading = false;
-  int _gameBannerRetryAttempts = 0;
+  /// Full-screen ads expire on Google's side after ~1 hour; drop cached ones a bit earlier.
+  static const Duration _fullScreenAdMaxAge = Duration(minutes: 50);
+
+  /// After this many consecutive failures, background retries pause until the next
+  /// explicit request (screen open, preload call) instead of hammering AdMob forever.
+  static const int _maxAutoRetries = 5;
+
+  /// Minimum gap between an interstitial and any previous full-screen ad.
+  static const Duration _minInterstitialGap = Duration(seconds: 30);
+
+  /// How long the "Opening Sponsor Ad..." loader waits for an on-demand rewarded ad.
+  static const Duration _rewardedOnDemandTimeout = Duration(seconds: 8);
+
+  // --- State ---
+  bool _isInitialized = false;
+
+  final _BannerSlotState _homeBanner = _BannerSlotState('Home');
+  final _BannerSlotState _gameBanner = _BannerSlotState('Game');
+
+  /// Kept for backwards compatibility with existing listeners.
+  RxBool get isBannerLoaded => _homeBanner.isLoaded;
+  RxBool get isGameBannerLoaded => _gameBanner.isLoaded;
 
   InterstitialAd? _interstitialAd;
+  DateTime? _interstitialLoadedAt;
   bool _isInterstitialLoading = false;
   int _interstitialRetryAttempts = 0;
 
   RewardedAd? _rewardedAd;
+  DateTime? _rewardedLoadedAt;
   bool _isRewardedLoading = false;
   int _rewardedRetryAttempts = 0;
 
+  /// Callbacks waiting for the in-flight rewarded load (on-demand path joins it
+  /// instead of firing a second parallel request that would overwrite the first).
+  final List<void Function(bool loaded)> _rewardedLoadWaiters = [];
+
+  /// True while any full-screen ad (interstitial or rewarded) is on screen.
+  bool _isShowingFullScreenAd = false;
+  DateTime? _lastFullScreenAdClosedAt;
+
+  /// Whether a full-screen ad is currently being presented.
+  bool get isShowingFullScreenAd => _isShowingFullScreenAd;
+
   Future<AdsService> init() async {
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-      try {
-        // Completely unrestricted ad requests for 100% ad inventory and maximum fill rate in production
-        final RequestConfiguration requestConfiguration = RequestConfiguration(
-          ageRestrictedTreatment: AgeRestrictedTreatment.unspecified,
-          maxAdContentRating: MaxAdContentRating.ma,
-        );
-
-        await MobileAds.instance.updateRequestConfiguration(
-          requestConfiguration,
-        );
-
-        await MobileAds.instance.initialize();
-        _isInitialized = true;
-        loadHomeBanner();
-        loadGameBanner();
-        _loadInterstitialAd();
-        _loadRewardedAd();
-      } catch (e) {
-        debugPrint('AdsService: Initialization failed: $e');
-      }
+      // Don't block app startup on the SDK handshake (it can take seconds on slow networks).
+      unawaited(_initializeSdk());
     }
     return this;
   }
 
-  // --- Banner Ad (Home Screen Only) ---
+  Future<void> _initializeSdk() async {
+    try {
+      final RequestConfiguration requestConfiguration = RequestConfiguration(
+        ageRestrictedTreatment: AgeRestrictedTreatment.unspecified,
+        maxAdContentRating: MaxAdContentRating.ma,
+      );
+      await MobileAds.instance.updateRequestConfiguration(requestConfiguration);
+      await MobileAds.instance.initialize();
+      _isInitialized = true;
+      loadHomeBanner();
+      loadGameBanner();
+      _loadInterstitialAd();
+      _loadRewardedAd();
+    } catch (e) {
+      debugPrint('AdsService: Initialization failed: $e');
+    }
+  }
 
-  void loadHomeBanner() {
-    if (!_isInitialized || _isHomeBannerLoading || (isBannerLoaded.value && _homeBannerAd != null)) return;
-    _isHomeBannerLoading = true;
+  static Duration _retryDelay(int attempts) =>
+      Duration(seconds: (attempts * 4).clamp(4, 30));
 
-    _homeBannerAd?.dispose();
-    _homeBannerAd = null;
-    isBannerLoaded.value = false;
+  // ---------------------------------------------------------------------------
+  // Banners
+  // ---------------------------------------------------------------------------
 
-    _homeBannerAd = BannerAd(
-      adUnitId: bannerAdUnitId,
+  void loadHomeBanner() => _loadBanner(_homeBanner, bannerAdUnitId);
+
+  void loadGameBanner() => _loadBanner(_gameBanner, gameBannerAdUnitId);
+
+  void _loadBanner(_BannerSlotState slot, String adUnitId) {
+    if (!_isInitialized || adUnitId.isEmpty) return;
+    if (slot.isLoading || (slot.isLoaded.value && slot.ad != null)) return;
+    // Respect backoff: views call this from build(), which must not trigger a request storm.
+    final next = slot.nextAttemptAt;
+    if (next != null && DateTime.now().isBefore(next)) return;
+
+    slot.isLoading = true;
+    slot.ad?.dispose();
+    slot.ad = null;
+    slot.isLoaded.value = false;
+
+    final banner = BannerAd(
+      adUnitId: adUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Home Banner Ad loaded successfully.');
-          isBannerLoaded.value = true;
-          _isHomeBannerLoading = false;
-          _homeBannerRetryAttempts = 0;
+          debugPrint('AdsService: ${slot.name} Banner loaded.');
+          slot.ad = ad as BannerAd;
+          slot.isLoading = false;
+          slot.retryAttempts = 0;
+          slot.nextAttemptAt = null;
+          slot.isLoaded.value = true;
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('AdsService: Home Banner Ad failed to load: ${error.message} (Code: ${error.code})');
+          debugPrint('AdsService: ${slot.name} Banner failed: ${error.message} (Code: ${error.code})');
           ad.dispose();
-          _homeBannerAd = null;
-          isBannerLoaded.value = false;
-          _isHomeBannerLoading = false;
-          _homeBannerRetryAttempts++;
+          if (identical(slot.ad, ad)) slot.ad = null;
+          slot.isLoaded.value = false;
+          slot.isLoading = false;
+          slot.retryAttempts++;
 
-          // Auto-retry with backoff (4s, 8s, 12s... max 30s)
-          final delaySeconds = (_homeBannerRetryAttempts * 4).clamp(4, 30);
-          Future.delayed(Duration(seconds: delaySeconds), () {
-            if (_isInitialized && !isBannerLoaded.value && !_isHomeBannerLoading) {
-              loadHomeBanner();
-            }
-          });
+          final delay = _retryDelay(slot.retryAttempts);
+          slot.nextAttemptAt = DateTime.now().add(delay);
+          if (slot.retryAttempts <= _maxAutoRetries) {
+            Future.delayed(delay, () => _loadBanner(slot, adUnitId));
+          }
         },
       ),
     );
-
-    _homeBannerAd?.load();
+    slot.ad = banner;
+    banner.load();
   }
 
-  Widget getHomeBannerWidget() {
-    return Obx(() {
-      if (isBannerLoaded.value && _homeBannerAd != null) {
-        return Center(
-          child: Container(
-            width: _homeBannerAd!.size.width.toDouble(),
-            height: _homeBannerAd!.size.height.toDouble(),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: AdWidget(
-              ad: _homeBannerAd!,
-            ),
-          ),
-        );
-      }
+  Widget getHomeBannerWidget() => _BannerAdSlot(slot: _homeBanner);
 
-      return const SizedBox.shrink();
-    });
-  }
+  Widget getGameBannerWidget() => _BannerAdSlot(slot: _gameBanner);
 
-  // --- Banner Ad (Game View) ---
-
-  void loadGameBanner() {
-    if (!_isInitialized || _isGameBannerLoading || (isGameBannerLoaded.value && _gameBannerAd != null)) return;
-    _isGameBannerLoading = true;
-
-    _gameBannerAd?.dispose();
-    _gameBannerAd = null;
-    isGameBannerLoaded.value = false;
-
-    _gameBannerAd = BannerAd(
-      adUnitId: gameBannerAdUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          debugPrint('AdsService: Game Banner Ad loaded successfully.');
-          isGameBannerLoaded.value = true;
-          _isGameBannerLoading = false;
-          _gameBannerRetryAttempts = 0;
-        },
-        onAdFailedToLoad: (ad, error) {
-          debugPrint('AdsService: Game Banner Ad failed to load: ${error.message} (Code: ${error.code})');
-          ad.dispose();
-          _gameBannerAd = null;
-          isGameBannerLoaded.value = false;
-          _isGameBannerLoading = false;
-          _gameBannerRetryAttempts++;
-
-          // Auto-retry with backoff (4s, 8s, 12s... max 30s)
-          final delaySeconds = (_gameBannerRetryAttempts * 4).clamp(4, 30);
-          Future.delayed(Duration(seconds: delaySeconds), () {
-            if (_isInitialized && !isGameBannerLoaded.value && !_isGameBannerLoading) {
-              loadGameBanner();
-            }
-          });
-        },
-      ),
-    );
-
-    _gameBannerAd?.load();
-  }
-
-  Widget getGameBannerWidget() {
-    return Obx(() {
-      if (isGameBannerLoaded.value && _gameBannerAd != null) {
-        return Center(
-          child: Container(
-            width: _gameBannerAd!.size.width.toDouble(),
-            height: _gameBannerAd!.size.height.toDouble(),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: AdWidget(
-              ad: _gameBannerAd!,
-            ),
-          ),
-        );
-      }
-
-      return const SizedBox.shrink();
-    });
-  }
-
-  // --- Interstitial Ad (Every 4 Completed Levels) ---
+  // ---------------------------------------------------------------------------
+  // Interstitial
+  // ---------------------------------------------------------------------------
 
   void _loadInterstitialAd() {
-    if (!_isInitialized || _isInterstitialLoading || _interstitialAd != null) return;
+    if (!_isInitialized || _isInterstitialLoading || interstitialAdUnitId.isEmpty) return;
+    if (_interstitialAd != null) {
+      if (!_isExpired(_interstitialLoadedAt)) return;
+      debugPrint('AdsService: Cached interstitial expired, reloading.');
+      _interstitialAd!.dispose();
+      _interstitialAd = null;
+    }
     _isInterstitialLoading = true;
 
     InterstitialAd.load(
@@ -246,8 +208,9 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Interstitial pre-loaded successfully and ready in memory.');
+          debugPrint('AdsService: Interstitial pre-loaded.');
           _interstitialAd = ad;
+          _interstitialLoadedAt = DateTime.now();
           _isInterstitialLoading = false;
           _interstitialRetryAttempts = 0;
         },
@@ -256,14 +219,13 @@ class AdsService extends GetxService {
           _interstitialAd = null;
           _isInterstitialLoading = false;
           _interstitialRetryAttempts++;
-
-          // Exponential backoff auto-retry (max 30s) so an ad is always ready in advance
-          final delaySeconds = (_interstitialRetryAttempts * 4).clamp(3, 30);
-          Future.delayed(Duration(seconds: delaySeconds), () {
-            if (_interstitialAd == null && !_isInterstitialLoading) {
-              _loadInterstitialAd();
-            }
-          });
+          if (_interstitialRetryAttempts <= _maxAutoRetries) {
+            Future.delayed(_retryDelay(_interstitialRetryAttempts), () {
+              if (_interstitialAd == null && !_isInterstitialLoading) {
+                _loadInterstitialAd();
+              }
+            });
+          }
         },
       ),
     );
@@ -271,16 +233,27 @@ class AdsService extends GetxService {
 
   /// Explicitly preloads interstitial ad in background
   void preloadInterstitialAd() {
+    if (_interstitialAd == null && !_isInterstitialLoading) {
+      _interstitialRetryAttempts = 0; // explicit request re-arms paused retries
+    }
     _loadInterstitialAd();
   }
 
   /// Checks if interstitial ad is currently cached and ready to show instantly
-  bool get isInterstitialAdReady => _interstitialAd != null;
+  bool get isInterstitialAdReady => _interstitialAd != null && !_isExpired(_interstitialLoadedAt);
 
-  /// Checks if an interstitial ad should be shown based on completed levels
-  void showInterstitialIfEligible({VoidCallback? onComplete}) {
+  /// Shows an interstitial every [AppConstants.interstitialLevelInterval] completed levels.
+  /// [onComplete] always runs exactly once (after the ad, or immediately if none is shown).
+  void showInterstitialIfEligible({VoidCallback? onComplete, bool isTutorial = false}) {
     final completed = StorageService.to.completedCount.value;
-    if (completed > 0 && completed % AppConstants.interstitialLevelInterval == 0) {
+    final lastClosed = _lastFullScreenAdClosedAt;
+    final tooSoon = lastClosed != null &&
+        DateTime.now().difference(lastClosed) < _minInterstitialGap;
+
+    if (!isTutorial &&
+        !tooSoon &&
+        completed > 0 &&
+        completed % AppConstants.interstitialLevelInterval == 0) {
       showInterstitialAd(onDismissed: onComplete);
     } else {
       onComplete?.call();
@@ -288,35 +261,53 @@ class AdsService extends GetxService {
   }
 
   void showInterstitialAd({VoidCallback? onDismissed}) {
-    if (_interstitialAd != null) {
-      _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _interstitialAd = null;
-          // Immediately pre-load the next interstitial in advance
-          _loadInterstitialAd();
-          onDismissed?.call();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          debugPrint('AdsService: Interstitial failed to show: $error');
-          ad.dispose();
-          _interstitialAd = null;
-          _loadInterstitialAd();
-          onDismissed?.call();
-        },
-      );
-      _interstitialAd!.show();
-    } else {
-      // Background load without blocking user
-      _loadInterstitialAd();
+    var done = false;
+    void finish() {
+      if (done) return;
+      done = true;
       onDismissed?.call();
     }
+
+    if (_isShowingFullScreenAd || !isInterstitialAdReady) {
+      preloadInterstitialAd();
+      finish();
+      return;
+    }
+
+    final ad = _interstitialAd!;
+    _interstitialAd = null; // prevent double presentation
+    _isShowingFullScreenAd = true;
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _onFullScreenAdClosed();
+        _loadInterstitialAd();
+        finish();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('AdsService: Interstitial failed to show: $error');
+        ad.dispose();
+        _isShowingFullScreenAd = false;
+        _loadInterstitialAd();
+        finish();
+      },
+    );
+    ad.show();
   }
 
-  // --- Rewarded Ad (Hints, Undo, Double Coins, Free Coins) ---
+  // ---------------------------------------------------------------------------
+  // Rewarded (Hints, Extra Bottle, Double Coins, Free Coins)
+  // ---------------------------------------------------------------------------
 
   void _loadRewardedAd() {
-    if (!_isInitialized || _isRewardedLoading || _rewardedAd != null) return;
+    if (!_isInitialized || _isRewardedLoading || rewardedAdUnitId.isEmpty) return;
+    if (_rewardedAd != null) {
+      if (!_isExpired(_rewardedLoadedAt)) return;
+      debugPrint('AdsService: Cached rewarded ad expired, reloading.');
+      _rewardedAd!.dispose();
+      _rewardedAd = null;
+    }
     _isRewardedLoading = true;
 
     RewardedAd.load(
@@ -324,161 +315,120 @@ class AdsService extends GetxService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          debugPrint('AdsService: Rewarded ad pre-loaded successfully and ready in memory.');
+          debugPrint('AdsService: Rewarded ad pre-loaded.');
           _rewardedAd = ad;
+          _rewardedLoadedAt = DateTime.now();
           _isRewardedLoading = false;
           _rewardedRetryAttempts = 0;
+          _notifyRewardedWaiters(true);
         },
         onAdFailedToLoad: (error) {
           debugPrint('AdsService: Rewarded ad failed to load: $error');
           _rewardedAd = null;
           _isRewardedLoading = false;
           _rewardedRetryAttempts++;
-
-          // Exponential backoff auto-retry (max 30s) so an ad is always cached and ready on tap
-          final delaySeconds = (_rewardedRetryAttempts * 3).clamp(3, 30);
-          Future.delayed(Duration(seconds: delaySeconds), () {
-            if (_rewardedAd == null && !_isRewardedLoading) {
-              _loadRewardedAd();
-            }
-          });
+          _notifyRewardedWaiters(false);
+          if (_rewardedRetryAttempts <= _maxAutoRetries) {
+            Future.delayed(_retryDelay(_rewardedRetryAttempts), () {
+              if (_rewardedAd == null && !_isRewardedLoading) {
+                _loadRewardedAd();
+              }
+            });
+          }
         },
       ),
     );
   }
 
+  void _notifyRewardedWaiters(bool loaded) {
+    if (_rewardedLoadWaiters.isEmpty) return;
+    final waiters = List.of(_rewardedLoadWaiters);
+    _rewardedLoadWaiters.clear();
+    for (final w in waiters) {
+      w(loaded);
+    }
+  }
+
   /// Checks if rewarded ad is currently cached and ready to show instantly
-  bool get isRewardedAdReady => _rewardedAd != null;
+  bool get isRewardedAdReady => _rewardedAd != null && !_isExpired(_rewardedLoadedAt);
 
   /// Preloads rewarded ad if not already loaded or loading
   void preloadRewardedAd() {
+    if (_rewardedAd == null && !_isRewardedLoading) {
+      _rewardedRetryAttempts = 0; // explicit request re-arms paused retries
+    }
     _loadRewardedAd();
   }
 
-  /// Shows rewarded ad with a callback on reward earned.
-  /// If already pre-loaded (ideal state), shows instantly without delay.
-  /// If not pre-loaded yet, shows a quick non-intrusive loading dialog and plays as soon as ready.
+  /// Shows a rewarded ad. If one is cached it plays instantly; otherwise a small
+  /// loader is shown while one is fetched. Exactly one of [onAdClosed] / [onAdFailed]
+  /// is called once the flow ends, so callers can always reset their busy state.
   void showRewardedAd({
     required Function(RewardItem reward) onUserEarnedReward,
     VoidCallback? onAdClosed,
     VoidCallback? onAdFailed,
   }) {
-    if (_rewardedAd != null) {
+    var finished = false;
+    void fail({bool notify = true}) {
+      if (finished) return;
+      finished = true;
+      if (notify) _showAdUnavailableMessage();
+      onAdFailed?.call();
+    }
+
+    if (_isShowingFullScreenAd) {
+      fail(notify: false);
+      return;
+    }
+
+    if (!_isInitialized || rewardedAdUnitId.isEmpty) {
+      fail();
+      return;
+    }
+
+    void present() {
+      if (finished) return;
+      finished = true;
       _displayCachedRewardedAd(
         onUserEarnedReward: onUserEarnedReward,
         onAdClosed: onAdClosed,
         onAdFailed: onAdFailed,
       );
-    } else {
-      debugPrint('AdsService: Rewarded ad not in memory, fetching with high priority...');
+    }
 
-      // Show a sleek mini loader dialog so user gets immediate visual response instead of waiting/failing
-      Get.dialog(
-        PopScope(
-          canPop: false,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0C2448).withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                    blurRadius: 20,
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Text(
-                    'Opening Sponsor Ad...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        barrierDismissible: false,
-      );
+    if (isRewardedAdReady) {
+      present();
+      return;
+    }
 
-      bool hasHandled = false;
+    debugPrint('AdsService: Rewarded ad not cached, fetching on demand...');
+    final closeLoader = _showAdLoader();
 
-      // Timeout safety: close loader after 4.5 seconds if network is extremely slow
-      final timeoutTimer = Timer(const Duration(milliseconds: 4500), () {
-        if (!hasHandled) {
-          hasHandled = true;
-          if (Get.isDialogOpen ?? false) {
-            Get.back();
-          }
-          onAdFailed?.call();
-          Get.snackbar(
-            'Connection Slow',
-            'Network is taking longer than usual. Please check internet connection and try again.',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: const Color(0xFF143767),
-            colorText: Colors.white,
-            duration: const Duration(seconds: 3),
-          );
-        }
-      });
+    late final Timer timeoutTimer;
+    void onLoadResult(bool loaded) {
+      if (finished) return; // timed out already; the ad stays cached for next tap
+      timeoutTimer.cancel();
+      closeLoader();
+      if (loaded && isRewardedAdReady) {
+        present();
+      } else {
+        fail();
+      }
+    }
 
-      _isRewardedLoading = true;
-      RewardedAd.load(
-        adUnitId: rewardedAdUnitId,
-        request: const AdRequest(),
-        rewardedAdLoadCallback: RewardedAdLoadCallback(
-          onAdLoaded: (ad) {
-            _rewardedAd = ad;
-            _isRewardedLoading = false;
-            _rewardedRetryAttempts = 0;
+    timeoutTimer = Timer(_rewardedOnDemandTimeout, () {
+      _rewardedLoadWaiters.remove(onLoadResult);
+      closeLoader();
+      fail();
+    });
 
-            if (!hasHandled) {
-              hasHandled = true;
-              timeoutTimer.cancel();
-              if (Get.isDialogOpen ?? false) {
-                Get.back();
-              }
-              _displayCachedRewardedAd(
-                onUserEarnedReward: onUserEarnedReward,
-                onAdClosed: onAdClosed,
-                onAdFailed: onAdFailed,
-              );
-            }
-          },
-          onAdFailedToLoad: (error) {
-            debugPrint('AdsService: Fallback Rewarded load failed: $error');
-            _rewardedAd = null;
-            _isRewardedLoading = false;
-
-            if (!hasHandled) {
-              hasHandled = true;
-              timeoutTimer.cancel();
-              if (Get.isDialogOpen ?? false) {
-                Get.back();
-              }
-              onAdFailed?.call();
-            }
-          },
-        ),
-      );
+    _rewardedLoadWaiters.add(onLoadResult);
+    _rewardedRetryAttempts = 0;
+    _loadRewardedAd(); // no-op if a load is already in flight; we join it via the waiter
+    if (!_isRewardedLoading && !isRewardedAdReady) {
+      // Load could not even start (e.g. unit ID missing)
+      _rewardedLoadWaiters.remove(onLoadResult);
+      onLoadResult(false);
     }
   }
 
@@ -487,40 +437,221 @@ class AdsService extends GetxService {
     VoidCallback? onAdClosed,
     VoidCallback? onAdFailed,
   }) {
-    if (_rewardedAd == null) {
+    final adToShow = _rewardedAd;
+    if (adToShow == null) {
+      _showAdUnavailableMessage();
       onAdFailed?.call();
       return;
     }
-
-    final adToShow = _rewardedAd!;
     _rewardedAd = null; // Clear immediately to prevent double presentation
+    _isShowingFullScreenAd = true;
 
+    var rewarded = false;
     adToShow.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        // Pre-load the next rewarded ad right away so the user never has to wait next time
+        _onFullScreenAdClosed();
         _loadRewardedAd();
         onAdClosed?.call();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('AdsService: Rewarded ad failed to show: $error');
         ad.dispose();
+        _isShowingFullScreenAd = false;
         _loadRewardedAd();
+        _showAdUnavailableMessage();
         onAdFailed?.call();
       },
     );
 
     adToShow.show(onUserEarnedReward: (adWithoutView, reward) {
+      if (rewarded) return; // guard against duplicate SDK callbacks
+      rewarded = true;
       onUserEarnedReward(reward);
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  bool _isExpired(DateTime? loadedAt) =>
+      loadedAt == null || DateTime.now().difference(loadedAt) > _fullScreenAdMaxAge;
+
+  void _onFullScreenAdClosed() {
+    _isShowingFullScreenAd = false;
+    _lastFullScreenAdClosedAt = DateTime.now();
+  }
+
+  void _showAdUnavailableMessage() {
+    if (Get.isSnackbarOpen) return;
+    Get.snackbar(
+      'Ad Not Available',
+      'No ad is ready right now. Please check your internet connection and try again shortly.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF143767),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  /// Shows the blocking loader and returns a function that closes exactly that
+  /// dialog. (Get.back() is not used: in GetX 4 it closes an open snackbar instead
+  /// of the dialog, which left this non-dismissible loader stuck on screen.)
+  VoidCallback _showAdLoader() {
+    final navigator = Get.key.currentState;
+    final context = Get.overlayContext ?? Get.context;
+    if (navigator == null || context == null) return () {};
+
+    final route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (_) => const PopScope(canPop: false, child: _AdLoaderDialog()),
+    );
+    navigator.push(route);
+
+    var closed = false;
+    return () {
+      if (closed) return;
+      closed = true;
+      if (route.isActive) navigator.removeRoute(route);
+    };
+  }
+
   @override
   void onClose() {
-    _homeBannerAd?.dispose();
-    _gameBannerAd?.dispose();
+    _homeBanner.ad?.dispose();
+    _gameBanner.ad?.dispose();
     _interstitialAd?.dispose();
     _rewardedAd?.dispose();
     super.onClose();
+  }
+}
+
+/// Mutable state for one banner placement.
+class _BannerSlotState {
+  _BannerSlotState(this.name);
+
+  final String name;
+  BannerAd? ad;
+  final RxBool isLoaded = false.obs;
+  bool isLoading = false;
+  int retryAttempts = 0;
+  DateTime? nextAttemptAt;
+
+  /// The mounted [_BannerAdSlot] currently allowed to render the AdWidget.
+  /// A BannerAd may only be in the widget tree once; during route transitions two
+  /// screens can briefly coexist, which otherwise throws "AdWidget is already in the Widget tree".
+  final Rxn<Object> owner = Rxn<Object>();
+}
+
+class _BannerAdSlot extends StatefulWidget {
+  const _BannerAdSlot({required this.slot});
+
+  final _BannerSlotState slot;
+
+  @override
+  State<_BannerAdSlot> createState() => _BannerAdSlotState();
+}
+
+class _BannerAdSlotState extends State<_BannerAdSlot> {
+  final Object _token = Object();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.slot.owner.value ??= _token;
+  }
+
+  @override
+  void dispose() {
+    final slot = widget.slot;
+    if (slot.owner.value == _token) {
+      // Defer: changing an Rx during unmount would rebuild another widget while the tree is locked.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (slot.owner.value == _token) slot.owner.value = null;
+      });
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slot = widget.slot;
+    return Obx(() {
+      final owner = slot.owner.value;
+      final loaded = slot.isLoaded.value;
+      final ad = slot.ad;
+
+      if (owner == null) {
+        // Previous owner went away; claim the banner after this frame.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) slot.owner.value ??= _token;
+        });
+        return const SizedBox.shrink();
+      }
+      if (owner != _token || !loaded || ad == null) {
+        return const SizedBox.shrink();
+      }
+
+      return Center(
+        child: Container(
+          width: ad.size.width.toDouble(),
+          height: ad.size.height.toDouble(),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+          // Key by ad instance so a reloaded banner gets a fresh AdWidget.
+          child: AdWidget(key: ObjectKey(ad), ad: ad),
+        ),
+      );
+    });
+  }
+}
+
+class _AdLoaderDialog extends StatelessWidget {
+  const _AdLoaderDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0C2448).withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+              blurRadius: 20,
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
+              ),
+            ),
+            SizedBox(width: 16),
+            Text(
+              'Opening Sponsor Ad...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -12,6 +12,7 @@ import '../logic/procedural_level_generator.dart';
 import '../logic/water_sort_solver.dart';
 import '../models/bottle.dart';
 import '../models/game_move.dart';
+import '../widgets/bottle_widget.dart';
 import '../widgets/defeat_dialog.dart';
 import '../widgets/pause_dialog.dart';
 import '../widgets/victory_dialog.dart';
@@ -287,7 +288,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       final capacity = target.capacity > 0 ? target.capacity : 4;
       final segmentHeight = 117.0 / capacity;
       final currentVol = target.layers.length.toDouble() + (progress * amountToPour);
-      final liquidYLocal = (147.0 - (currentVol * segmentHeight)).clamp(35.0, 135.0);
+      final liquidYLocal = (147.0 - (currentVol * segmentHeight)).clamp(35.0, 135.0) *
+          BottleWidget.displayScale;
 
       streamEnd.value = Offset(_targetMouthX, _targetMouthY + liquidYLocal);
     }
@@ -346,7 +348,10 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         if (stackBox != null && fromBox != null && toBox != null) {
           final fromPos = stackBox.globalToLocal(fromBox.localToGlobal(Offset.zero));
           final toPos = stackBox.globalToLocal(toBox.localToGlobal(Offset.zero));
-          final bottleWidth = toBox.size.width; // 58.0
+          final bottleWidth = toBox.size.width;
+          // Geometry constants below are in the bottle's 58x150 design space;
+          // scale them to the bottle's on-screen size so the pour lines up.
+          final s = bottleWidth / BottleWidget.designWidth;
 
           // Determine if target bottle is physically to the left of source bottle on screen
           final isTargetLeft = toPos.dx < fromPos.dx;
@@ -356,16 +361,16 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           _targetMouthY = toPos.dy;
 
           // Spout target position: pouring bottle hovers HIGHER UP in the air above target bottle (28px above rim)
-          final spoutTargetX = _targetMouthX + (isTargetLeft ? 14.0 : -14.0);
-          final spoutTargetY = _targetMouthY - 28.0;
+          final spoutTargetX = _targetMouthX + (isTargetLeft ? 14.0 : -14.0) * s;
+          final spoutTargetY = _targetMouthY - 28.0 * s;
 
           // Source bottle pivot (top center before translation)
           final sourcePivotX = fromPos.dx + bottleWidth / 2;
           final sourcePivotY = fromPos.dy;
 
           // When tilted by ~57 deg (1.0 rad), pouring lip offsets relative to pivot:
-          final lipOffsetDx = isTargetLeft ? -6.5 : 6.5;
-          final lipOffsetDy = 12.5;
+          final lipOffsetDx = (isTargetLeft ? -6.5 : 6.5) * s;
+          final lipOffsetDy = 12.5 * s;
 
           final offsetDx = spoutTargetX - sourcePivotX - lipOffsetDx;
           final offsetDy = spoutTargetY - sourcePivotY - lipOffsetDy;
@@ -380,7 +385,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
           final capacity = targetBottle.capacity > 0 ? targetBottle.capacity : 4;
           final segmentHeight = 117.0 / capacity;
           final initialVol = targetBottle.layers.length.toDouble();
-          final liquidYLocal = (147.0 - (initialVol * segmentHeight)).clamp(35.0, 135.0);
+          final liquidYLocal =
+              (147.0 - (initialVol * segmentHeight)).clamp(35.0, 135.0) * s;
 
           streamEnd.value = Offset(_targetMouthX, _targetMouthY + liquidYLocal);
           return isTargetLeft;
@@ -458,10 +464,10 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       }
     }
 
-    // Show Interstitial ad if eligible (every 4 levels)
+    // Show Interstitial ad if eligible (every AppConstants.interstitialLevelInterval levels)
     await Future.delayed(const Duration(milliseconds: 900));
 
-    AdsService.to.showInterstitialIfEligible(onComplete: () {
+    AdsService.to.showInterstitialIfEligible(isTutorial: isTutorial, onComplete: () {
       Get.dialog(
         VictoryDialog(
           levelId: levelId.value,

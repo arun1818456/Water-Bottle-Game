@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_screen_background.dart';
+import '../../core/widgets/pressable_scale.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/app_images.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../core/widgets/free_coins_dialog.dart';
@@ -37,27 +38,7 @@ class _ShopViewState extends State<ShopView> {
       body: Stack(
         children: [
           // Background Image with dark luxury glass overlay
-          Positioned.fill(
-            child: Image.asset(
-              AppImages.backGround,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF07152B).withValues(alpha: 0.90),
-                    const Color(0xFF091F3D).withValues(alpha: 0.94),
-                    const Color(0xFF050E1B).withValues(alpha: 0.97),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
+          const Positioned.fill(child: AppScreenBackground()),
 
           SafeArea(
             child: Obx(() {
@@ -108,7 +89,7 @@ class _ShopViewState extends State<ShopView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
+          PressableScale(
             onTap: () => Get.back(),
             child: Container(
               width: 42,
@@ -442,6 +423,8 @@ class _ShopViewState extends State<ShopView> {
                         Flexible(
                           child: Text(
                             skin.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
@@ -450,28 +433,6 @@ class _ShopViewState extends State<ShopView> {
                             ),
                           ),
                         ),
-                        if (isEquipped) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF00E676).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF00E676),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Text(
-                              'ACTIVE',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF69F0AE),
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -629,6 +590,8 @@ class _ShopViewState extends State<ShopView> {
                         Flexible(
                           child: Text(
                             bg.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
@@ -637,28 +600,6 @@ class _ShopViewState extends State<ShopView> {
                             ),
                           ),
                         ),
-                        if (isEquipped) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF00E676).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF00E676),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Text(
-                              'ACTIVE',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF69F0AE),
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 4),

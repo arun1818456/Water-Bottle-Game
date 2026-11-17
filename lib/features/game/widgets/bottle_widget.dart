@@ -14,13 +14,22 @@ class BottleWidget extends StatefulWidget {
   final bool isHintSource;
   final bool isHintTarget;
   final String skinType;
-  final double tiltAngle; // in radians, negative for tilt left, positive for tilt right
+  final double
+  tiltAngle; // in radians, negative for tilt left, positive for tilt right
   final Offset tiltOffset; // translation offset during pour
   final double drainAmount;
   final double fillAmount;
   final int? fillColor;
   final bool isColorblindMode;
   final VoidCallback onTap;
+
+  /// Visual scale of the bottle on the board. The bottle is still painted in its
+  /// native 58x150 design space, then scaled, so painter geometry stays untouched.
+  static const double displayScale = 0.9;
+  static const double designWidth = 58.0;
+  static const double designHeight = 150.0;
+  static const double displayWidth = designWidth * displayScale;
+  static const double displayHeight = designHeight * displayScale;
 
   const BottleWidget({
     super.key,
@@ -87,7 +96,8 @@ class _BottleWidgetState extends State<BottleWidget>
       _elevationController.value = 1.0;
     }
 
-    _isCurrentlyCompleted = widget.bottle.isCompleted && widget.bottle.isNotEmpty;
+    _isCurrentlyCompleted =
+        widget.bottle.isCompleted && widget.bottle.isNotEmpty;
     if (_isCurrentlyCompleted) {
       _capController.value = 1.0;
       _burstParticles = BottleSparklesHelper.generateBurstParticles(
@@ -114,7 +124,8 @@ class _BottleWidgetState extends State<BottleWidget>
     }
 
     // Bottle completion detection
-    final isNowCompleted = widget.bottle.isCompleted && widget.bottle.isNotEmpty;
+    final isNowCompleted =
+        widget.bottle.isCompleted && widget.bottle.isNotEmpty;
 
     if (!_isCurrentlyCompleted && isNowCompleted) {
       _isCurrentlyCompleted = true;
@@ -174,7 +185,9 @@ class _BottleWidgetState extends State<BottleWidget>
         builder: (context, child) {
           // Elevation translation: lifts bottle up by 24px when selected
           final elevationOffset =
-              -24.0 * Curves.easeOutBack.transform(_elevationController.value);
+              -24.0 *
+              BottleWidget.displayScale *
+              Curves.easeOutBack.transform(_elevationController.value);
 
           // Subtle squash impact when cap slams down
           double bottleScaleY = 1.0;
@@ -202,44 +215,52 @@ class _BottleWidgetState extends State<BottleWidget>
                 scaleY: bottleScaleY,
                 alignment: Alignment.bottomCenter,
                 child: SizedBox(
-                  width: 58,
-                  height: 150,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // 1. Core Bottle & Liquid Canvas
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: BottlePainter(
-                            bottle: widget.bottle,
-                            skinType: widget.skinType,
-                            isSelected: widget.isSelected,
-                            isHintSource: widget.isHintSource,
-                            isHintTarget: widget.isHintTarget,
-                            wavePhase: _waveController.value * 2 * pi,
-                            tiltAngle: widget.tiltAngle,
-                            drainAmount: widget.drainAmount,
-                            fillAmount: widget.fillAmount,
-                            fillColor: widget.fillColor,
-                            isColorblindMode: widget.isColorblindMode,
+                  width: BottleWidget.displayWidth,
+                  height: BottleWidget.displayHeight,
+                  child: FittedBox(
+                    fit: BoxFit.fill,
+                    child: SizedBox(
+                      width: BottleWidget.designWidth,
+                      height: BottleWidget.designHeight,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // 1. Core Bottle & Liquid Canvas
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: BottlePainter(
+                                bottle: widget.bottle,
+                                skinType: widget.skinType,
+                                isSelected: widget.isSelected,
+                                isHintSource: widget.isHintSource,
+                                isHintTarget: widget.isHintTarget,
+                                wavePhase: _waveController.value * 2 * pi,
+                                tiltAngle: widget.tiltAngle,
+                                drainAmount: widget.drainAmount,
+                                fillAmount: widget.fillAmount,
+                                fillColor: widget.fillColor,
+                                isColorblindMode: widget.isColorblindMode,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
 
-                      // 2. Animated Cap & Sparkle Burst Effects Overlay
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: BottleCompletionPainter(
-                            skinType: widget.skinType,
-                            capProgress: curvedCapVal,
-                            burstProgress: _sparkleBurstController.value,
-                            ambientPhase: _ambientSparkleController.value * 2 * pi,
-                            burstParticles: _burstParticles,
-                            liquidColorId: widget.bottle.topColor,
+                          // 2. Animated Cap & Sparkle Burst Effects Overlay
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: BottleCompletionPainter(
+                                skinType: widget.skinType,
+                                capProgress: curvedCapVal,
+                                burstProgress: _sparkleBurstController.value,
+                                ambientPhase:
+                                    _ambientSparkleController.value * 2 * pi,
+                                burstParticles: _burstParticles,
+                                liquidColorId: widget.bottle.topColor,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -250,4 +271,3 @@ class _BottleWidgetState extends State<BottleWidget>
     );
   }
 }
-

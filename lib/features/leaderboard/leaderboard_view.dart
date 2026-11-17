@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_images.dart';
+import '../../core/widgets/app_screen_background.dart';
+import '../../core/widgets/pressable_scale.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/firebase_service.dart';
 import '../../core/utils/number_formatter.dart';
@@ -24,13 +25,25 @@ class _LeaderboardViewState extends State<LeaderboardView> {
   @override
   void initState() {
     super.initState();
-    controller = Get.isRegistered<LeaderboardController>()
+    final alreadyRegistered = Get.isRegistered<LeaderboardController>();
+    controller = alreadyRegistered
         ? Get.find<LeaderboardController>()
         : Get.put(LeaderboardController());
-    // Silent refresh so cached data opens instantly without showing a blocking loader
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.refreshLeaderboard();
-    });
+    // Revisit: silent refresh so cached data opens instantly without a blocking loader.
+    // First visit: onInit already started the load, so don't fire a duplicate fetch.
+    if (alreadyRegistered) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.refreshLeaderboard();
+      });
+    }
+  }
+
+  /// Names from the cloud carry a "(You)" suffix; the UI shows a YOU badge instead.
+  String _displayName(LeaderboardUser user) {
+    const suffix = ' (You)';
+    return user.name.endsWith(suffix)
+        ? user.name.substring(0, user.name.length - suffix.length)
+        : user.name;
   }
 
   @override
@@ -38,58 +51,8 @@ class _LeaderboardViewState extends State<LeaderboardView> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Rich Cosmic Aqua Game Background Image
-          Positioned.fill(
-            child: Image.asset(
-              AppImages.backGround,
-              fit: BoxFit.cover,
-            ),
-          ),
-
-          // 2. Multi-stop Luxury Vignette & Dark Blue Glass Gradient Overlay
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF040B17).withValues(alpha: 0.88),
-                    const Color(0xFF071B38).withValues(alpha: 0.82),
-                    const Color(0xFF0A182F).withValues(alpha: 0.92),
-                    const Color(0xFF030914).withValues(alpha: 0.97),
-                  ],
-                  stops: const [0.0, 0.35, 0.70, 1.0],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
-
-          // 3. Subtle Cyan & Purple Ambient Glow Spheres
-          Positioned(
-            top: -60,
-            left: -40,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF00E5FF).withValues(alpha: 0.12),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 140,
-            right: -60,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF8E24AA).withValues(alpha: 0.15),
-              ),
-            ),
-          ),
+          // Shared blurred backdrop (same as other screens)
+          const Positioned.fill(child: AppScreenBackground()),
 
           // 4. Foreground Content
           SafeArea(
@@ -254,19 +217,21 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                             ),
                             child: ClipRRect(
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-                              child: ListView.separated(
-                                physics: const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.fromLTRB(10, 12, 10, 16),
-                                itemCount: displayList.length,
-                                itemBuilder: (context, index) {
-                                  final user = displayList[index];
-                                  return _buildPlayerRow(user, index);
-                                },
-                                separatorBuilder: (context, index) => const Divider(
-                                  color: Color(0x1F00E5FF),
-                                  height: 10,
-                                  indent: 48,
-                                  endIndent: 12,
+                              child: RefreshIndicator(
+                                color: const Color(0xFF00E5FF),
+                                backgroundColor: const Color(0xFF0E223D),
+                                onRefresh: () => controller.refreshLeaderboard(),
+                                child: ListView.separated(
+                                  physics: const AlwaysScrollableScrollPhysics(
+                                    parent: BouncingScrollPhysics(),
+                                  ),
+                                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 16),
+                                  itemCount: displayList.length,
+                                  itemBuilder: (context, index) {
+                                    final user = displayList[index];
+                                    return _buildPlayerRow(user, index, top1.stars);
+                                  },
+                                  separatorBuilder: (context, index) => const SizedBox(height: 6),
                                 ),
                               ),
                             ),
@@ -386,7 +351,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Back Button
-          GestureDetector(
+          PressableScale(
             onTap: controller.onBackPressed,
             child: Container(
               width: 42,
@@ -413,52 +378,36 @@ class _LeaderboardViewState extends State<LeaderboardView> {
             ),
           ),
 
-          // Central Header Pill with Gold Trophy
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF9C27B0), Color(0xFF4A148C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: const Color(0xFFE040FB).withValues(alpha: 0.9),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFE040FB).withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.emoji_events_rounded,
-                  color: Color(0xFFFFD700),
-                  size: 20,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'GLOBAL LEADERBOARD',
+          // Two-tone title, consistent with the other screens
+          Column(
+            children: [
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF80E5FF), Color(0xFFFFFFFF), Color(0xFFFFD54F)],
+                ).createShader(bounds),
+                child: const Text(
+                  'LEADERBOARD',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
+                    letterSpacing: 2.0,
                     color: Colors.white,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const Text(
+                'Compete with players worldwide',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
 
           // Profile & Login Action Button
-          GestureDetector(
+          PressableScale(
             onTap: () {
               AudioService.to.playButtonClick();
               Get.dialog(const ProfileAuthDialog()).then((_) {
@@ -466,38 +415,24 @@ class _LeaderboardViewState extends State<LeaderboardView> {
               });
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF00E5FF), Color(0xFF0072FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFF80D8FF),
-                  width: 1.2,
-                ),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF80D8FF), width: 1.5),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
-                    blurRadius: 8,
+                    blurRadius: 10,
                   ),
                 ],
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.person_rounded, color: Colors.white, size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+              child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
             ),
           ),
         ],
@@ -607,9 +542,20 @@ class _LeaderboardViewState extends State<LeaderboardView> {
     bool isGold = false,
   }) {
     final String medalEmoji = isGold ? '👑' : (rank == 2 ? '🥈' : '🥉');
-    final String pedestalLabel = isGold ? '1ST' : (rank == 2 ? '2ND' : '3RD');
+    final String pedestalSuffix = isGold ? 'ST' : (rank == 2 ? 'ND' : 'RD');
+    final int entranceDelayMs = isGold ? 0 : (rank == 2 ? 140 : 260);
 
-    return Container(
+    final Widget medal = Text(
+      medalEmoji,
+      style: TextStyle(
+        fontSize: isGold ? 24 : 18,
+        shadows: [
+          Shadow(color: accentColor.withValues(alpha: 0.8), blurRadius: isGold ? 14 : 8),
+        ],
+      ),
+    );
+
+    final column = Container(
       height: height,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -645,11 +591,12 @@ class _LeaderboardViewState extends State<LeaderboardView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Crown / Medal Icon
-                Text(
-                  medalEmoji,
-                  style: TextStyle(fontSize: isGold ? 22 : 18),
-                ),
+                // Crown / Medal Icon (gold crown gently floats)
+                isGold
+                    ? medal
+                        .animate(onPlay: (c) => c.repeat(reverse: true))
+                        .moveY(begin: 0, end: -3, duration: 1300.ms, curve: Curves.easeInOut)
+                    : medal,
 
                 const SizedBox(height: 2),
 
@@ -693,7 +640,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
 
                 // Player Name
                 Text(
-                  user.name,
+                  _displayName(user),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -759,36 +706,86 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                 ),
               ),
             ),
-            child: Text(
-              pedestalLabel,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: isGold ? 12 : 10,
-                fontWeight: FontWeight.w900,
-                color: accentColor,
-                letterSpacing: 1.5,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '$rank',
+                  style: TextStyle(
+                    fontSize: isGold ? 18 : 15,
+                    fontWeight: FontWeight.w900,
+                    color: accentColor,
+                    height: 1.0,
+                    shadows: [
+                      Shadow(color: accentColor.withValues(alpha: 0.7), blurRadius: 8),
+                    ],
+                  ),
+                ),
+                Text(
+                  pedestalSuffix,
+                  style: TextStyle(
+                    fontSize: isGold ? 10 : 9,
+                    fontWeight: FontWeight.w900,
+                    color: accentColor.withValues(alpha: 0.85),
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+
+    final animated = column
+        .animate()
+        .fadeIn(duration: 450.ms, delay: entranceDelayMs.ms)
+        .slideY(begin: 0.18, end: 0, duration: 550.ms, delay: entranceDelayMs.ms, curve: Curves.easeOutCubic);
+
+    // Soft recurring shine across the champion's pedestal
+    return isGold
+        ? animated.animate(onPlay: (c) => c.repeat()).shimmer(
+              delay: 2200.ms,
+              duration: 1400.ms,
+              color: Colors.white.withValues(alpha: 0.18),
+            )
+        : animated;
   }
 
   /// Individual Player Row in Standings List
-  Widget _buildPlayerRow(LeaderboardUser user, int index) {
+  Widget _buildPlayerRow(LeaderboardUser user, int index, int topStars) {
     final isMe = user.isCurrentUser;
     final hasClimbed = isMe && controller.hasRankClimbed.value;
+    final Color? medalColor = switch (user.rank) {
+      1 => const Color(0xFFFFD700),
+      2 => const Color(0xFFE2E8F0),
+      3 => const Color(0xFFFFB300),
+      _ => null,
+    };
+    final double starRatio =
+        topStars > 0 ? (user.stars / topStars).clamp(0.0, 1.0).toDouble() : 0.0;
+    final Color accent = isMe
+        ? (hasClimbed ? const Color(0xFF00E676) : const Color(0xFF00E5FF))
+        : (medalColor ?? const Color(0xFF4FC3F7));
 
     final rowWidget = Container(
-      margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: isMe
-            ? (hasClimbed
-                ? const Color(0xFF00E676).withValues(alpha: 0.22)
-                : const Color(0xFF00E5FF).withValues(alpha: 0.15))
-            : Colors.white.withValues(alpha: index % 2 == 0 ? 0.03 : 0.01),
+        gradient: LinearGradient(
+          colors: isMe
+              ? [
+                  accent.withValues(alpha: hasClimbed ? 0.26 : 0.18),
+                  accent.withValues(alpha: 0.05),
+                ]
+              : [
+                  Colors.white.withValues(alpha: 0.06),
+                  Colors.white.withValues(alpha: 0.015),
+                ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         border: isMe
             ? Border.all(
@@ -814,27 +811,41 @@ class _LeaderboardViewState extends State<LeaderboardView> {
       ),
       child: Row(
         children: [
-          // Rank Badge with Climb Indicator
+          // Rank Badge (medal tinted for top 3, cyan for you)
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: isMe
-                  ? (hasClimbed ? const Color(0xFF00E676) : const Color(0xFF00E5FF))
-                  : const Color(0xFF0E2545).withValues(alpha: 0.8),
+              gradient: LinearGradient(
+                colors: isMe
+                    ? [accent, accent.withValues(alpha: 0.7)]
+                    : medalColor != null
+                        ? [medalColor.withValues(alpha: 0.45), medalColor.withValues(alpha: 0.15)]
+                        : [const Color(0xFF14305A), const Color(0xFF0B1E3A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isMe ? Colors.white : const Color(0xFF1E4878),
+                color: isMe
+                    ? Colors.white
+                    : (medalColor?.withValues(alpha: 0.8) ?? const Color(0xFF1E4878)),
                 width: 1,
               ),
             ),
             child: Center(
-              child: Text(
-                '${user.rank}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: isMe ? Colors.black : Colors.white70,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Text(
+                    '${user.rank}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: isMe ? Colors.black : (medalColor ?? Colors.white70),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -893,7 +904,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   children: [
                     Flexible(
                       child: Text(
-                        user.name,
+                        _displayName(user),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -932,7 +943,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     Container(
@@ -941,15 +952,46 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                         color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        'Level ${user.level}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.65),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.water_drop_rounded, size: 9, color: accent.withValues(alpha: 0.9)),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Lv ${user.level}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Progress relative to the #1 player's stars
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: Stack(
+                          children: [
+                            Container(height: 4, color: Colors.white.withValues(alpha: 0.08)),
+                            FractionallySizedBox(
+                              widthFactor: starRatio,
+                              child: Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [accent.withValues(alpha: 0.6), accent],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                    const SizedBox(width: 10),
                   ],
                 ),
               ],
@@ -1015,7 +1057,12 @@ class _LeaderboardViewState extends State<LeaderboardView> {
           );
     }
 
-    return rowWidget;
+    // Staggered entrance for the first rows on screen
+    final delayMs = (index < 10 ? index : 10) * 45;
+    return rowWidget
+        .animate()
+        .fadeIn(duration: 320.ms, delay: delayMs.ms)
+        .slideX(begin: 0.06, end: 0, duration: 380.ms, delay: delayMs.ms, curve: Curves.easeOutCubic);
   }
 
   /// Sticky Bottom Floating Bar with Current User Placement
@@ -1023,7 +1070,8 @@ class _LeaderboardViewState extends State<LeaderboardView> {
     return Obx(() {
       final rank = controller.currentUserRank.value;
       final stars = controller.userTotalStars.value;
-      final unlockedLevel = controller.storage.unlockedLevel.value;
+      final unlockedLevel = controller.userLevel.value;
+      final gap = controller.starsToNextRank.value;
       final myName = controller.storage.getOrCreateUserName();
       final myPhotoUrl = controller.storage.userPhotoUrl.value;
 
@@ -1167,12 +1215,21 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    'Level $unlockedLevel • Global Rank',
+                    rank == 1
+                        ? 'Lv $unlockedLevel • 👑 You rule the world!'
+                        : (rank > 1 && gap > 0)
+                            ? 'Lv $unlockedLevel • ⭐ $gap more to reach #${rank - 1}'
+                            : 'Lv $unlockedLevel • Global Rank',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.65),
+                      fontWeight: FontWeight.w600,
+                      color: rank == 1
+                          ? const Color(0xFFFFD700).withValues(alpha: 0.9)
+                          : Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -1324,6 +1381,16 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                     ? null
                     : () async {
                         AudioService.to.playButtonClick();
+                        if (!Get.isRegistered<FirebaseService>()) {
+                          Get.snackbar(
+                            'Unavailable',
+                            'Online services are not ready yet. Please try again shortly.',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: const Color(0xFFFF5252).withValues(alpha: 0.95),
+                            colorText: Colors.white,
+                          );
+                          return;
+                        }
                         setState(() => _isSigningIn = true);
                         final err = await FirebaseService.to.signInWithGoogle();
                         if (mounted) setState(() => _isSigningIn = false);

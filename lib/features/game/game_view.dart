@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/ads_service.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/widgets/pressable_scale.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/utils/haptic_feedback_helper.dart';
 import 'controllers/game_controller.dart';
@@ -79,7 +80,16 @@ class _GameViewState extends State<GameView> {
                       hintCount: hintCount,
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+
+                    // Level & difficulty label
+                    _buildLevelInfoPill(
+                      levelId: controller.levelId.value,
+                      difficulty: difficultyText,
+                      moves: moveHistoryCount,
+                    ),
+
+                    const SizedBox(height: 4),
 
                     // Middle Bottles Board with floating glass stage platform (positioned higher & fully responsive)
                     Expanded(
@@ -409,6 +419,86 @@ class _GameViewState extends State<GameView> {
     );
   }
 
+  /// Compact glass pill under the top bar: "LEVEL 12 · Hard · 5 moves"
+  Widget _buildLevelInfoPill({
+    required int levelId,
+    required String difficulty,
+    required int moves,
+  }) {
+    final Color diffColor = switch (difficulty) {
+      'Easy' => const Color(0xFF00E676),
+      'Medium' => const Color(0xFF00E5FF),
+      'Hard' => const Color(0xFFFFAB40),
+      'Very Hard' || 'Expert' => const Color(0xFFFF5252),
+      _ => const Color(0xFFB388FF),
+    };
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 5, 6, 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B2244).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.isTutorial ? 'TUTORIAL' : 'LEVEL $levelId',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (!widget.isTutorial)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: diffColor.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: diffColor.withValues(alpha: 0.6)),
+              ),
+              child: Text(
+                difficulty,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: diffColor,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          if (!widget.isTutorial) const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.swap_horiz_rounded, size: 12, color: Colors.white.withValues(alpha: 0.6)),
+                const SizedBox(width: 3),
+                Text(
+                  '$moves',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Universal Circular Glass Icon Button with optional badge (softer & faded style)
   Widget _buildCircularIconButton({
     required IconData icon,
@@ -421,9 +511,9 @@ class _GameViewState extends State<GameView> {
     double size = 40,
     double iconSize = 20,
   }) {
-    return GestureDetector(
+    return PressableScale(
       onTap: disabled ? null : onTap,
-      behavior: HitTestBehavior.opaque,
+      pressedScale: 0.88,
       child: Stack(
         clipBehavior: Clip.none,
         children: [

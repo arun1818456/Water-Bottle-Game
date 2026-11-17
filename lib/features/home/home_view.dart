@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:water_bottle_ais/core/constants/app_images.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/pressable_scale.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../core/widgets/free_coins_dialog.dart';
@@ -373,8 +374,9 @@ class _HomeViewState extends State<HomeView> {
               // Play Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 55),
-                child: GestureDetector(
+                child: PressableScale(
                   onTap: controller.onPlayPressed,
+                  pressedScale: 0.95,
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 13),
@@ -430,7 +432,16 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                 ),
-              ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+              )
+                  .animate()
+                  .scale(duration: 400.ms, curve: Curves.easeOutBack)
+                  // Periodic light sweep to draw the eye to the main action
+                  .animate(onPlay: Get.testMode ? null : (c) => c.repeat())
+                  .shimmer(
+                    delay: 2600.ms,
+                    duration: 1300.ms,
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
 
               const SizedBox(height: 15),
               Obx(
@@ -505,8 +516,9 @@ class _HomeViewState extends State<HomeView> {
     required VoidCallback onTap,
     bool hasBadge = false,
   }) {
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
+      pressedScale: 0.9,
       child: SizedBox(
         width: 76,
         height: 92,
