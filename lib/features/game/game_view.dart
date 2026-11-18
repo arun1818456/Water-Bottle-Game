@@ -82,11 +82,9 @@ class _GameViewState extends State<GameView> {
 
                     const SizedBox(height: 4),
 
-                    // Level & difficulty label
+                    // Level label with 0.5 opacity
                     _buildLevelInfoPill(
                       levelId: controller.levelId.value,
-                      difficulty: difficultyText,
-                      moves: moveHistoryCount,
                     ),
 
                     const SizedBox(height: 4),
@@ -419,82 +417,28 @@ class _GameViewState extends State<GameView> {
     );
   }
 
-  /// Compact glass pill under the top bar: "LEVEL 12 · Hard · 5 moves"
+  /// Compact level indicator under top bar with 0.5 opacity
   Widget _buildLevelInfoPill({
     required int levelId,
-    required String difficulty,
-    required int moves,
   }) {
-    final Color diffColor = switch (difficulty) {
-      'Easy' => const Color(0xFF00E676),
-      'Medium' => const Color(0xFF00E5FF),
-      'Hard' => const Color(0xFFFFAB40),
-      'Very Hard' || 'Expert' => const Color(0xFFFF5252),
-      _ => const Color(0xFFB388FF),
-    };
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 5, 6, 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B2244).withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            widget.isTutorial ? 'TUTORIAL' : 'LEVEL $levelId',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: 1.4,
-            ),
+    return Opacity(
+      opacity: 0.5,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B2244).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        ),
+        child: Text(
+          widget.isTutorial ? 'TUTORIAL' : 'LEVEL $levelId',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 1.2,
           ),
-          const SizedBox(width: 8),
-          if (!widget.isTutorial)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: diffColor.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: diffColor.withValues(alpha: 0.6)),
-              ),
-              child: Text(
-                difficulty,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: diffColor,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-          if (!widget.isTutorial) const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.swap_horiz_rounded, size: 12, color: Colors.white.withValues(alpha: 0.6)),
-                const SizedBox(width: 3),
-                Text(
-                  '$moves',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white.withValues(alpha: 0.75),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../core/widgets/pressable_scale.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../core/widgets/free_coins_dialog.dart';
+import '../../core/widgets/google_features_dialog.dart';
 import 'home_controller.dart';
 import 'widgets/interactive_water_drop.dart';
 
@@ -27,6 +28,31 @@ class _HomeViewState extends State<HomeView> {
     controller = Get.isRegistered<HomeController>()
         ? Get.find<HomeController>()
         : Get.put(HomeController());
+
+    _checkAndShowGooglePromo();
+  }
+
+  void _checkAndShowGooglePromo() {
+    final storage = controller.storage;
+    final isLoggedIn = storage.userEmail.value.isNotEmpty;
+    final alreadyShown = storage.hasGooglePromoBeenShown();
+
+    // Pehli baar aane par aur agar user abhi tak Google se logged in nahi hai
+    if (!alreadyShown && !isLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Mark as shown so it appears strictly once
+        await storage.setGooglePromoShown();
+        if (mounted) {
+          await Future.delayed(const Duration(milliseconds: 650));
+          if (mounted && !storage.userEmail.value.isNotEmpty) {
+            Get.dialog(
+              const GoogleFeaturesDialog(),
+              barrierDismissible: true,
+            );
+          }
+        }
+      });
+    }
   }
 
   @override

@@ -1,44 +1,26 @@
 {
   "project_info": {
-    "project_number": "44715065965",
-    "project_id": "test-e761f",
-    "storage_bucket": "test-e761f.firebasestorage.app"
+    "project_number": "117041960530",
+    "project_id": "water-bottle-40899",
+    "storage_bucket": "water-bottle-40899.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:44715065965:android:5b36c48e959623c1bbf564",
+        "mobilesdk_app_id": "1:117041960530:android:efab3335a1621e6ec4b18b",
         "android_client_info": {
           "package_name": "com.aruninnovationstudio.water_bottle_ais"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "44715065965-3si2ellmdr2gge1p19u3f29taqv9dshq.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.aruninnovationstudio.water_bottle_ais",
-            "certificate_hash": "b25c1d2fd97771acd6513c8219a6411f8af32e40"
-          }
-        },
-        {
-          "client_id": "44715065965-1ccc5scgnnj3s0m3v3k0207qk7immsrk.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAyvS2F5Igq9IkiNUqWe55KVEu1ajwNs2E"
+          "current_key": "AIzaSyAUZqvK7n9XdI3JzuwnGLOANJKc_mSb6aQ"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "44715065965-1ccc5scgnnj3s0m3v3k0207qk7immsrk.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

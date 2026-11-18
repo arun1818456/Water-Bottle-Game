@@ -44,6 +44,7 @@ class StorageService extends GetxService {
   static const String _keyCountryFlag = 'asm_user_country_flag';
   static const String _keyLastRank = 'asm_last_leaderboard_rank';
   static const String _keyNotificationIndex = 'asm_notification_message_idx';
+  static const String _keyGooglePromoShown = 'asm_google_promo_shown';
 
   // Reactive Observables for Real-time UI updates
   final RxInt coins = 100.obs;
@@ -573,6 +574,16 @@ class StorageService extends GetxService {
     await _prefs.setInt(_keyDailyStreak, 0);
     await _prefs.setString(_keyDailyLastClaim, '');
     onDataChanged?.call();
+  }
+
+  // --- Google Onboarding / Promo Dialog Flag ---
+
+  bool hasGooglePromoBeenShown() {
+    return _prefs.getBool(_keyGooglePromoShown) ?? false;
+  }
+
+  Future<void> setGooglePromoShown() async {
+    await _prefs.setBool(_keyGooglePromoShown, true);
   }
 
   // --- Reset Progress ---
