@@ -57,6 +57,7 @@ class _FreeCoinsDialogState extends State<FreeCoinsDialog> {
         if (!mounted) return;
         final amount = rewardCoinsAmount;
         await storage.addCoins(amount);
+        if (!mounted) return;
         AudioService.to.playWinSound();
 
         setState(() {

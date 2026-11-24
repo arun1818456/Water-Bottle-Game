@@ -104,7 +104,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                       );
                     }
 
-                    // Guest / Not Logged In View
+                    // Guest / Not Logged In View (No Dummy Data)
                     if (!controller.isUserLoggedIn.value) {
                       return _buildLoginRequiredView(context, controller);
                     }
@@ -294,6 +294,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
   /// User Google Profile Photo with fallback and glowing circular border
   Widget _buildUserPhoto({
     required String photoUrl,
+    String avatarEmoji = '',
     required double radius,
     required Color borderColor,
     double borderWidth = 2.0,
@@ -315,10 +316,14 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                 width: radius * 2,
                 height: radius * 2,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: radius * 1.1,
+                errorBuilder: (context, error, stackTrace) => Center(
+                  child: avatarEmoji.isNotEmpty
+                      ? Text(avatarEmoji, style: TextStyle(fontSize: radius * 1.05))
+                      : Icon(
+                          Icons.person_rounded,
+                          color: Colors.white,
+                          size: radius * 1.1,
+                        ),
                 ),
                 loadingBuilder: (context, child, progress) {
                   if (progress == null) return child;
@@ -334,10 +339,14 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   );
                 },
               )
-            : Icon(
-                Icons.person_rounded,
-                color: Colors.white70,
-                size: radius * 1.1,
+            : Center(
+                child: avatarEmoji.isNotEmpty
+                    ? Text(avatarEmoji, style: TextStyle(fontSize: radius * 1.05))
+                    : Icon(
+                        Icons.person_rounded,
+                        color: Colors.white70,
+                        size: radius * 1.1,
+                      ),
               ),
       ),
     );
@@ -607,6 +616,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   children: [
                     _buildUserPhoto(
                       photoUrl: user.photoUrl,
+                      avatarEmoji: user.avatarEmoji,
                       radius: isGold ? 24 : 20,
                       borderColor: accentColor,
                       borderWidth: isGold ? 2.5 : 1.8,
@@ -859,6 +869,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
             children: [
               _buildUserPhoto(
                 photoUrl: user.photoUrl,
+                avatarEmoji: user.avatarEmoji,
                 radius: 18,
                 borderColor: isMe
                     ? (hasClimbed ? const Color(0xFF00E676) : const Color(0xFF00E5FF))
@@ -1306,7 +1317,6 @@ class _LeaderboardViewState extends State<LeaderboardView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Glowing Trophy Icon
               Container(
                 width: 82,
                 height: 82,
@@ -1333,9 +1343,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
-
               const Text(
                 'JOIN GLOBAL LEADERBOARD',
                 textAlign: TextAlign.center,
@@ -1346,9 +1354,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   letterSpacing: 1.2,
                 ),
               ),
-
               const SizedBox(height: 10),
-
               Text(
                 'Sign in with Google to view live player ranks, compete on global leaderboards, and backup your level stars safely to the cloud!',
                 textAlign: TextAlign.center,
@@ -1358,10 +1364,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   height: 1.45,
                 ),
               ),
-
               const SizedBox(height: 22),
-
-              // Feature Highlights Row (Cloud Sync, Real Ranks, Free)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1372,10 +1375,7 @@ class _LeaderboardViewState extends State<LeaderboardView> {
                   _buildFeatureBadge('⭐ Stars'),
                 ],
               ),
-
               const SizedBox(height: 26),
-
-              // Direct One-Tap Google Sign-In Button
               GestureDetector(
                 onTap: _isSigningIn
                     ? null

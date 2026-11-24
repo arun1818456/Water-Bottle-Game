@@ -61,15 +61,18 @@ class WaterSortSolver {
     final queue = Queue<_SolverNode>();
     final visited = <String>{};
 
-    // Deep copy initial state
+    // Deep copy initial state preserving capacities and hidden indices
+    final capacities = bottles.map((b) => b.capacity).toList();
     final initialLayers = bottles.map((b) => List<int>.from(b.layers)).toList();
+    final initialHidden = bottles.map((b) => Set<int>.from(b.hiddenIndices)).toList();
     final startNode = _SolverNode(
       state: initialLayers,
+      hidden: initialHidden,
       firstMove: null,
     );
 
     queue.add(startNode);
-    visited.add(_canonicalHash(initialLayers));
+    visited.add(_canonicalHash(initialLayers, initialHidden));
 
     var nodesSearched = 0;
 
@@ -78,49 +81,63 @@ class WaterSortSolver {
       final current = queue.removeFirst();
 
       // Check if current state is solved
-      if (_isStateSolved(current.state)) {
+      if (_isStateSolved(current.state, current.hidden, capacities)) {
         return current.firstMove;
       }
 
       // Generate next valid moves
       for (var from = 0; from < current.state.length; from++) {
         final fromLayers = current.state[from];
+        final fromHidden = current.hidden[from];
+        final fromCap = capacities[from];
         if (fromLayers.isEmpty) continue;
 
         // Skip full completed bottles
-        if (fromLayers.length == 4 && fromLayers.every((c) => c == fromLayers.first)) {
+        if (fromLayers.length == fromCap &&
+            fromHidden.isEmpty &&
+            fromLayers.every((c) => c == fromLayers.first)) {
           continue;
         }
 
         final topColor = fromLayers.last;
-        final topCount = _countTopColor(fromLayers);
+        final topCount = _countTopColor(fromLayers, fromHidden);
 
         for (var to = 0; to < current.state.length; to++) {
           if (from == to) continue;
           final toLayers = current.state[to];
-          if (toLayers.length >= 4) continue;
+          final toCap = capacities[to];
+          if (toLayers.length >= toCap) continue;
 
           // Pour rules
           if (toLayers.isEmpty) {
-            // Avoid moving a pure stack to an empty bottle (wasted symmetric move)
-            if (fromLayers.every((c) => c == topColor)) {
+            // Avoid moving a pure exposed stack to an empty bottle (wasted symmetric move)
+            if (fromHidden.isEmpty && fromLayers.every((c) => c == topColor)) {
               continue;
             }
           } else if (toLayers.last != topColor) {
             continue;
           }
 
-          final space = 4 - toLayers.length;
+          final space = toCap - toLayers.length;
           final pourAmount = min(topCount, space);
           if (pourAmount <= 0) continue;
 
-          // Apply move
+          // Apply move matching Bottle.pourInto behavior
           final nextState = current.state.map((l) => List<int>.from(l)).toList();
+          final nextHidden = current.hidden.map((h) => Set<int>.from(h)).toList();
           for (var k = 0; k < pourAmount; k++) {
-            nextState[to].add(nextState[from].removeLast());
+            final color = nextState[from].removeLast();
+            nextHidden[from].remove(nextState[from].length);
+            nextState[to].add(color);
+          }
+          if (nextState[from].isNotEmpty) {
+            nextHidden[from].remove(nextState[from].length - 1);
+          }
+          if (nextState[to].isNotEmpty) {
+            nextHidden[to].remove(nextState[to].length - 1);
           }
 
-          final hash = _canonicalHash(nextState);
+          final hash = _canonicalHash(nextState, nextHidden);
           if (!visited.contains(hash)) {
             visited.add(hash);
 
@@ -134,6 +151,7 @@ class WaterSortSolver {
 
             queue.add(_SolverNode(
               state: nextState,
+              hidden: nextHidden,
               firstMove: firstMove,
             ));
           }
@@ -161,12 +179,13 @@ class WaterSortSolver {
     return null;
   }
 
-  static int _countTopColor(List<int> list) {
+  static int _countTopColor(List<int> list, Set<int> hidden) {
     if (list.isEmpty) return 0;
     final top = list.last;
     var count = 0;
     for (var i = list.length - 1; i >= 0; i--) {
-      if (list[i] == top) {
+      final isHidden = hidden.contains(i) && i < list.length - 1;
+      if (list[i] == top && !isHidden) {
         count++;
       } else {
         break;
@@ -175,28 +194,41 @@ class WaterSortSolver {
     return count;
   }
 
-  static bool _isStateSolved(List<List<int>> state) {
-    for (final b in state) {
+  static bool _isStateSolved(
+    List<List<int>> state,
+    List<Set<int>> hidden,
+    List<int> capacities,
+  ) {
+    for (var i = 0; i < state.length; i++) {
+      final b = state[i];
       if (b.isEmpty) continue;
-      if (b.length != 4) return false;
+      if (b.length != capacities[i]) return false;
+      if (hidden[i].isNotEmpty) return false;
       final first = b.first;
       if (!b.every((c) => c == first)) return false;
     }
     return true;
   }
 
-  static String _canonicalHash(List<List<int>> state) {
-    final copy = state.map((b) => b.join(',')).toList()..sort();
-    return copy.join('|');
+  static String _canonicalHash(List<List<int>> state, List<Set<int>> hidden) {
+    final entries = <String>[];
+    for (var i = 0; i < state.length; i++) {
+      final h = hidden[i].toList()..sort();
+      entries.add('${state[i].join(',')}:${h.join(',')}');
+    }
+    entries.sort();
+    return entries.join('|');
   }
 }
 
 class _SolverNode {
   final List<List<int>> state;
+  final List<Set<int>> hidden;
   final HintMove? firstMove;
 
   _SolverNode({
     required this.state,
+    required this.hidden,
     required this.firstMove,
   });
 }

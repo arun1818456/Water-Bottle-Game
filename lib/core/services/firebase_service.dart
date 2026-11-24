@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -31,8 +32,11 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
   // Throttling & Zero-Cost Sync Tracking
   bool _isCloudDirty = false;
+  bool _isSigningIn = false;
   DateTime? _lastSyncTime;
   static const Duration _minSyncInterval = Duration(minutes: 3);
+  Future<void>? _inFlightRestore;
+  String? _restoredUidInSession;
 
   // Leaderboard In-Memory Cache (Conserves Read Quota)
   List<LeaderboardUser>? _cachedLeaderboard;
@@ -53,9 +57,15 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       // Connect local storage mutations to dirty flag
       StorageService.to.onDataChanged = markDirty;
 
-      // Listen to auth state changes
+      // Listen to auth state changes (emits current user once on subscribe)
       _auth?.authStateChanges().listen((user) async {
         if (user != null) {
+          if (_isSigningIn) return;
+          final lastUid = StorageService.to.getLastSignedInUid();
+          if (lastUid.isNotEmpty && lastUid != user.uid) {
+            await StorageService.to.resetGameProgressForSignOut();
+          }
+          await StorageService.to.setLastSignedInUid(user.uid);
           if (user.email != null && user.email!.isNotEmpty) {
             await StorageService.to.setUserEmail(user.email!);
           }
@@ -65,14 +75,14 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
           if (user.photoURL != null && user.photoURL!.isNotEmpty) {
             await StorageService.to.setUserPhotoUrl(user.photoURL!);
           }
-          // On app launch with existing signed-in user, fetch and restore cloud data first!
+          // Fetch and restore cloud data (deduplicated against concurrent calls)
           await restoreCloudData();
         }
       });
 
-      // If user is already authenticated from a previous session, restore cloud progress on startup
+      // Kick off initial restore without blocking app startup
       if (isUserLoggedIn) {
-        await restoreCloudData();
+        unawaited(restoreCloudData());
       }
     } catch (e) {
       debugPrint('FirebaseService: Initialization skipped or google-services.json not found: $e');
@@ -110,26 +120,40 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
   }
 
   /// Restores progress from Firestore for the currently logged-in user
-  Future<void> restoreCloudData() async {
-    if (!_isInitialized || _db == null || !isUserLoggedIn) return;
-
-    try {
-      final userId = currentUser?.uid;
-      if (userId == null) return;
-
-      final docRef = _db!.collection('users').doc(userId);
-      final doc = await docRef.get();
-
-      if (doc.exists && doc.data() != null) {
-        await StorageService.to.mergeAndRestoreFromCloudMap(doc.data()!);
-        debugPrint('FirebaseService: Cloud progress restored on launch for $userId.');
-      } else {
-        // Initial cloud profile if doc doesn't exist yet
-        await syncUserData(force: true);
-      }
-    } catch (e) {
-      debugPrint('FirebaseService: restoreCloudData error: $e');
+  Future<void> restoreCloudData({bool force = false}) {
+    if (!_isInitialized || _db == null || !isUserLoggedIn) {
+      return Future.value();
     }
+    final userId = currentUser?.uid;
+    if (userId == null) return Future.value();
+    if (!force && _restoredUidInSession == userId) {
+      return Future.value();
+    }
+    if (_inFlightRestore != null) return _inFlightRestore!;
+
+    _inFlightRestore = () async {
+      try {
+        final docRef = _db!.collection('users').doc(userId);
+        final doc = await docRef.get();
+
+        if (doc.exists && doc.data() != null) {
+          await StorageService.to.mergeAndRestoreFromCloudMap(doc.data()!);
+          debugPrint('FirebaseService: Cloud progress restored on launch for $userId.');
+        } else {
+          // Initial cloud profile if doc doesn't exist yet
+          await syncUserData(force: true);
+        }
+        _restoredUidInSession = userId;
+        if (StorageService.to.getCachedLeaderboard().isEmpty) {
+          unawaited(fetchLeaderboard(limit: 50));
+        }
+      } catch (e) {
+        debugPrint('FirebaseService: restoreCloudData error: $e');
+      } finally {
+        _inFlightRestore = null;
+      }
+    }();
+    return _inFlightRestore!;
   }
 
   /// Syncs player's progress to Firestore document `users/{userId}`.
@@ -163,29 +187,23 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       final userPhoto = storage.userPhotoUrl.value;
       final totalStars = storage.totalStarsCollected;
 
-      // Complete compact payload in a single document
+      // Compact cloud payload: only important progress, leaderboard profile, and updatedAt
       final Map<String, dynamic> data = {
-        'userId': userId,
         'userName': userName,
         'photoUrl': userPhoto,
-        'avatarEmoji': '🎮',
         'countryFlag': storage.getOrCreateCountryFlag(),
-        'email': storage.userEmail.value,
         'coins': storage.coins.value,
         'unlockedLevel': storage.unlockedLevel.value,
-        'completedCount': storage.completedCount.value,
         'totalStars': totalStars,
         'levelStars': storage.levelStars.map((k, v) => MapEntry(k.toString(), v)),
         'unlockedBottleSkins': storage.unlockedBottleSkins.toList(),
         'equippedBottleSkin': storage.equippedBottleSkin.value,
         'unlockedBackgrounds': storage.unlockedBackgrounds.toList(),
         'equippedBackground': storage.equippedBackground.value,
-        'dailyStreak': storage.dailyStreak.value,
-        'lastDailyClaimDate': storage.lastDailyClaimDate.value,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      await _db!.collection('users').doc(userId).set(data, SetOptions(merge: true));
+      await _db!.collection('users').doc(userId).set(data);
       _isCloudDirty = false;
       _lastSyncTime = now;
       debugPrint('FirebaseService: Cloud progress saved successfully for $userId.');
@@ -203,6 +221,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       return 'Firebase is not initialized yet. Please place google-services.json in android/app/';
     }
 
+    _isSigningIn = true;
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
@@ -223,6 +242,14 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
       if (user != null) {
         final userId = user.uid;
+        // Safety guard: if a different account was previously stored locally,
+        // wipe its local progress before loading/creating the new account's data.
+        final lastUid = StorageService.to.getLastSignedInUid();
+        if (lastUid.isNotEmpty && lastUid != userId) {
+          await StorageService.to.resetGameProgressForSignOut();
+        }
+        await StorageService.to.setLastSignedInUid(userId);
+
         final email = user.email ?? '';
         final displayName = (user.displayName != null && user.displayName!.isNotEmpty)
             ? user.displayName!
@@ -231,9 +258,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
         await StorageService.to.setUserEmail(email);
         await StorageService.to.setUserName(displayName);
-        if (photoUrl.isNotEmpty) {
-          await StorageService.to.setUserPhotoUrl(photoUrl);
-        }
+        await StorageService.to.setUserPhotoUrl(photoUrl);
 
         // Check if user already has cloud progress in Firestore
         final userDocRef = _db!.collection('users').doc(userId);
@@ -251,8 +276,9 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
           debugPrint('FirebaseService: New cloud profile created for $userId.');
         }
 
-        // Invalidate leaderboard cache so refreshed ranks reflect newly logged-in user
+        // Invalidate leaderboard cache and prime local offline cache with real users
         invalidateLeaderboardCache();
+        unawaited(fetchLeaderboard(limit: 50));
 
         return null; // Success!
       }
@@ -262,20 +288,29 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       return e.message ?? 'Google Sign-In failed.';
     } catch (e) {
       return 'Google Sign-In error: $e';
+    } finally {
+      _isSigningIn = false;
     }
   }
 
-  /// Sign Out
+  /// Sign Out: flushes pending cloud backup, signs out of Google/Firebase,
+  /// and clears local game progress so another account cannot inherit it.
   Future<void> signOut() async {
     try {
+      if (_isCloudDirty && isUserLoggedIn) {
+        await syncUserData(force: true);
+      }
       final GoogleSignIn googleSignIn = GoogleSignIn();
       await googleSignIn.signOut();
       await _auth?.signOut();
-      await StorageService.to.setUserEmail('');
-      await StorageService.to.setUserPhotoUrl('');
-      invalidateLeaderboardCache();
     } catch (e) {
       debugPrint('FirebaseService: signOut error: $e');
+    } finally {
+      await StorageService.to.resetGameProgressForSignOut();
+      _isCloudDirty = false;
+      _lastSyncTime = null;
+      _restoredUidInSession = null;
+      invalidateLeaderboardCache();
     }
   }
 
@@ -326,10 +361,9 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         final doc = docs[i];
         final data = doc.data();
 
-        final uId = data['userId'] as String? ?? doc.id;
+        final uId = doc.id;
         final name = data['userName'] as String? ?? 'Player';
         final photo = data['photoUrl'] as String? ?? '';
-        final emoji = data['avatarEmoji'] as String? ?? '🎮';
         final flag = data['countryFlag'] as String? ?? '🇮🇳';
         final stars = data['totalStars'] as int? ?? 0;
         final level = data['unlockedLevel'] as int? ?? 1;
@@ -340,7 +374,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
           rank: i + 1,
           name: isCurrent ? '$name (You)' : name,
           photoUrl: photo,
-          avatarEmoji: emoji,
+          avatarEmoji: '🎮',
           countryFlag: flag,
           stars: stars,
           level: level,
@@ -390,13 +424,19 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         }
       }
 
-      // Update cache
+      // Update in-memory and persistent local cache for offline leaderboard & rank-up dialog
       _cachedLeaderboard = users;
       _lastLeaderboardFetchTime = now;
+      if (users.isNotEmpty) {
+        unawaited(StorageService.to.saveCachedLeaderboard(users));
+      }
       return users;
     } catch (e) {
       debugPrint('FirebaseService: fetchLeaderboard error: $e');
-      return _cachedLeaderboard ?? [];
+      if (_cachedLeaderboard != null && _cachedLeaderboard!.isNotEmpty) {
+        return _cachedLeaderboard!;
+      }
+      return StorageService.to.getCachedLeaderboard();
     }
   }
 

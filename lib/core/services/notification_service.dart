@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -64,11 +65,13 @@ class NotificationService extends GetxService {
               AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      // Request notification permission for Android 13+
-      await _requestPermissions();
-
       _isInitialized = true;
       debugPrint('NotificationService initialized successfully.');
+
+      // Request Android 13+ notification permission after first frame so cold start never stalls before runApp()
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_requestPermissions());
+      });
     } catch (e) {
       debugPrint('NotificationService: Init error: $e');
     }

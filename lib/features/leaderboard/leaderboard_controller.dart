@@ -87,7 +87,7 @@ class LeaderboardController extends GetxController {
     final loggedIn = (firebaseService?.isUserLoggedIn ?? false) || storage.userEmail.value.isNotEmpty;
     isUserLoggedIn.value = loggedIn;
 
-    // If user is not logged in, we do not show dummy/static data!
+    // Guest users must sign in with Google (no dummy/static leaderboard data)
     if (!loggedIn) {
       leaderboardUsers.clear();
       currentUserRank.value = 0;
@@ -106,16 +106,27 @@ class LeaderboardController extends GetxController {
         if (onlineUsers.isNotEmpty) {
           _setOnlineLeaderboard(onlineUsers);
         } else {
-          _setSingleUserLeaderboard();
+          final cached = storage.getCachedLeaderboard();
+          if (cached.isNotEmpty) {
+            _setOnlineLeaderboard(cached);
+          } else {
+            _setSingleUserLeaderboard();
+          }
         }
       } catch (e) {
-        debugPrint('LeaderboardController: Online fetch failed: $e');
-        if (leaderboardUsers.isEmpty) {
+        debugPrint('LeaderboardController: Online fetch failed, checking local cache: $e');
+        final cached = storage.getCachedLeaderboard();
+        if (cached.isNotEmpty) {
+          _setOnlineLeaderboard(cached);
+        } else if (leaderboardUsers.isEmpty) {
           _setSingleUserLeaderboard();
         }
       }
     } else {
-      if (leaderboardUsers.isEmpty) {
+      final cached = storage.getCachedLeaderboard();
+      if (cached.isNotEmpty) {
+        _setOnlineLeaderboard(cached);
+      } else if (leaderboardUsers.isEmpty) {
         _setSingleUserLeaderboard();
       }
     }

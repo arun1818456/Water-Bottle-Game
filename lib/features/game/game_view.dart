@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
@@ -25,6 +27,7 @@ class GameView extends StatefulWidget {
 
 class _GameViewState extends State<GameView> {
   late final GameController controller;
+  bool _isExitDialogOpen = false;
 
   @override
   void initState() {
@@ -47,11 +50,50 @@ class _GameViewState extends State<GameView> {
     super.dispose();
   }
 
+  Future<void> _handleBackPress() async {
+    if (_isExitDialogOpen ||
+        (Get.isDialogOpen ?? false) ||
+        controller.isPouring.value ||
+        controller.isGameWon.value) {
+      return;
+    }
+
+    AudioService.to.playButtonClick();
+    HapticFeedbackHelper.selectionClick();
+    _isExitDialogOpen = true;
+
+    try {
+      final shouldExit = await Get.dialog<bool>(
+        _ExitGameDialog(
+          isTutorial: widget.isTutorial,
+          levelId: controller.levelId.value,
+        ),
+        barrierDismissible: true,
+      );
+
+      if (shouldExit == true && mounted) {
+        if (widget.isTutorial) {
+          Get.offAllNamed('/home');
+        } else {
+          Get.back();
+        }
+      }
+    } finally {
+      _isExitDialogOpen = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final storage = StorageService.to;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPress();
+      },
+      child: Scaffold(
       body: Obx(() {
         final currentSkin = storage.equippedBottleSkin.value;
         final currentBg = storage.equippedBackground.value;
@@ -66,6 +108,12 @@ class _GameViewState extends State<GameView> {
             child: Stack(
               key: controller.gameStackKey,
               children: [
+                // Animated floating particles background layer
+                const _FloatingParticlesBackground(),
+
+                // Vignette overlay for depth
+                _buildVignetteOverlay(),
+
                 // Ambient stage light aura behind bottles
                 _buildAmbientStageLighting(currentBg),
 
@@ -151,6 +199,7 @@ class _GameViewState extends State<GameView> {
           ),
         );
       }),
+      ),
     );
   }
 
@@ -189,6 +238,29 @@ class _GameViewState extends State<GameView> {
                 ],
                 stops: const [0.0, 0.55, 1.0],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dark vignette around edges for cinematic game depth
+  Widget _buildVignetteOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.center,
+              radius: 1.1,
+              colors: [
+                Colors.transparent,
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.35),
+                Colors.black.withValues(alpha: 0.65),
+              ],
+              stops: const [0.0, 0.55, 0.85, 1.0],
             ),
           ),
         ),
@@ -527,9 +599,6 @@ class _GameViewState extends State<GameView> {
 
   /// Banner Ad container shown at absolute bottom for all levels
   Widget _buildBannerAdContainer() {
-    // Ensure game banner ad is loaded
-    AdsService.to.loadGameBanner();
-
     return Container(
       width: double.infinity,
       color: Colors.transparent,
@@ -769,6 +838,166 @@ class _GameViewState extends State<GameView> {
   }
 }
 
+class _ExitGameDialog extends StatelessWidget {
+  final bool isTutorial;
+  final int levelId;
+
+  const _ExitGameDialog({
+    required this.isTutorial,
+    required this.levelId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF0E223D),
+              Color(0xFF071324),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+            color: const Color(0xFF00E5FF).withValues(alpha: 0.55),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+              blurRadius: 24,
+            ),
+            const BoxShadow(
+              color: Colors.black87,
+              blurRadius: 20,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFFB300).withValues(alpha: 0.15),
+                border: Border.all(
+                  color: const Color(0xFFFFB300),
+                  width: 1.8,
+                ),
+              ),
+              child: const Icon(
+                Icons.exit_to_app_rounded,
+                color: Color(0xFFFFD54F),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isTutorial ? 'Exit Tutorial?' : 'Exit Level?',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              isTutorial
+                  ? 'Are you sure you want to leave the tutorial and go to the home screen?'
+                  : 'Are you sure you want to leave Level $levelId? Your current board progress will be lost.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.78),
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      AudioService.to.playButtonClick();
+                      Get.back(result: false);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00E5FF), Color(0xFF0088FF)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Continue',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF001E3C),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      AudioService.to.playButtonClick();
+                      Get.back(result: true);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF5252).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFFF5252).withValues(alpha: 0.7),
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Exit',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFFF8A8A),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ).animate().scale(duration: 240.ms, curve: Curves.easeOutBack).fadeIn(duration: 180.ms);
+  }
+}
+
 /// Keeps the tutorial hand centered on its target bottle, even on differently
 /// sized devices. It also glides and pulses to make the next interaction clear.
 class _TutorialFinger extends StatefulWidget {
@@ -919,4 +1148,120 @@ Widget _buildDifficultySplash(String difficultyText) {
         .fadeOut(duration: 500.ms)
         .scale(begin: const Offset(1, 1), end: const Offset(1.5, 1.5), duration: 500.ms),
   );
+}
+
+/// Animated floating particles / bubbles that drift across the game background
+/// to give it an immersive, lively feel.
+class _FloatingParticlesBackground extends StatefulWidget {
+  const _FloatingParticlesBackground();
+
+  @override
+  State<_FloatingParticlesBackground> createState() => _FloatingParticlesBackgroundState();
+}
+
+class _FloatingParticlesBackgroundState extends State<_FloatingParticlesBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<_Particle> _particles;
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _particles = List.generate(28, (_) => _Particle.random(_random));
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return CustomPaint(
+              painter: _ParticlesPainter(_particles, _controller.value),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _Particle {
+  /// Normalized positions [0..1]
+  double x;
+  double y;
+  double radius;
+  double speed;
+  double opacity;
+  double drift; // horizontal sway amplitude
+  double phase; // offset for sin wave
+
+  _Particle({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.speed,
+    required this.opacity,
+    required this.drift,
+    required this.phase,
+  });
+
+  factory _Particle.random(Random r) {
+    return _Particle(
+      x: r.nextDouble(),
+      y: r.nextDouble(),
+      radius: 1.2 + r.nextDouble() * 2.8,
+      speed: 0.0004 + r.nextDouble() * 0.0012,
+      opacity: 0.08 + r.nextDouble() * 0.22,
+      drift: 0.002 + r.nextDouble() * 0.008,
+      phase: r.nextDouble() * 2 * pi,
+    );
+  }
+}
+
+class _ParticlesPainter extends CustomPainter {
+  final List<_Particle> particles;
+  final double tick;
+
+  _ParticlesPainter(this.particles, this.tick);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    final time = DateTime.now().millisecondsSinceEpoch / 1000.0;
+
+    for (final p in particles) {
+      // Slowly rise upward, wrap around
+      p.y -= p.speed;
+      if (p.y < -0.05) {
+        p.y = 1.05;
+        p.x = Random().nextDouble();
+      }
+
+      final dx = p.x * size.width + sin(time * 0.8 + p.phase) * p.drift * size.width;
+      final dy = p.y * size.height;
+
+      paint.color = const Color(0xFF00E5FF).withValues(alpha: p.opacity);
+      canvas.drawCircle(Offset(dx, dy), p.radius, paint);
+
+      // Subtle glow ring
+      paint.color = const Color(0xFF00E5FF).withValues(alpha: p.opacity * 0.3);
+      canvas.drawCircle(Offset(dx, dy), p.radius * 2.5, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlesPainter oldDelegate) => true;
 }

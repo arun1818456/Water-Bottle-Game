@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:water_bottle_ais/core/services/firebase_service.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
+import '../../../core/services/firebase_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/haptic_feedback_helper.dart';
 import '../../../core/widgets/internet_required_dialog.dart';
@@ -15,8 +16,10 @@ import '../models/bottle.dart';
 import '../models/game_move.dart';
 import '../widgets/bottle_widget.dart';
 import '../widgets/defeat_dialog.dart';
+import '../widgets/leaderboard_rank_up_dialog.dart';
 import '../widgets/pause_dialog.dart';
 import '../widgets/victory_dialog.dart';
+import '../../leaderboard/leaderboard_controller.dart';
 
 /// GameController drives liquid sort mechanics, animations, solver hints, and win/loss states
 class GameController extends GetxController with GetTickerProviderStateMixin {
@@ -80,6 +83,8 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
   late LevelData _originalLevelData;
   late final AnimationController _pourAnimationController;
+  Timer? _difficultySplashTimer;
+  int _pourSession = 0;
 
   @override
   void onInit() {
@@ -96,6 +101,9 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
   @override
   void onClose() {
+    _pourSession++;
+    _difficultySplashTimer?.cancel();
+    _pourAnimationController.stop();
     _pourAnimationController.dispose();
     super.onClose();
   }
@@ -108,9 +116,20 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   Future<void> loadLevel(int id) async {
+    _pourSession++;
+    if (_pourAnimationController.isAnimating) {
+      _pourAnimationController.stop();
+    }
+    _pourAnimationController.reset();
+
     levelId.value = id;
     selectedBottleIndex.value = null;
     isPouring.value = false;
+    pouringSourceIndex.value = -1;
+    pouringTargetIndex.value = -1;
+    pourTiltAngle.value = 0.0;
+    pourTiltOffset.value = Offset.zero;
+    streamProgress.value = 0.0;
     pouringAmount.value = 0;
     isGameWon.value = false;
     showCelebration.value = false;
@@ -143,10 +162,13 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     _originalLevelData = await LevelManager.loadLevel(id);
     difficulty.value = _originalLevelData.difficulty;
 
+    _difficultySplashTimer?.cancel();
     if (difficulty.value == 'Hard' || difficulty.value == 'Expert' || difficulty.value == 'Very Hard') {
       showDifficultySplash.value = true;
-      Future.delayed(const Duration(milliseconds: 1800), () {
-        showDifficultySplash.value = false;
+      _difficultySplashTimer = Timer(const Duration(milliseconds: 1800), () {
+        if (!isClosed) {
+          showDifficultySplash.value = false;
+        }
       });
     }
 
@@ -162,6 +184,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       loadedBottles.add(bottle);
     }
 
+    bottleKeys.removeWhere((k, _) => k >= loadedBottles.length);
     bottles.assignAll(loadedBottles);
     StorageService.to.setCurrentLevel(id);
   }
@@ -233,6 +256,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   Future<void> _executePour(int fromIdx, int toIdx) async {
+    final session = _pourSession;
     isPouring.value = true;
     pouringSourceIndex.value = fromIdx;
     pouringTargetIndex.value = toIdx;
@@ -261,6 +285,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     _pourAnimationController.reset();
 
     void animationListener() {
+      if (isClosed || session != _pourSession) return;
       final t = _pourAnimationController.value;
 
       // Sequence:
@@ -294,45 +319,58 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
       streamEnd.value = Offset(_targetMouthX, _targetMouthY + liquidYLocal);
     }
+
     _pourAnimationController.addListener(animationListener);
 
-    await _pourAnimationController.forward();
-    _pourAnimationController.removeListener(animationListener);
+    bool completedMove = false;
+    try {
+      await _pourAnimationController.forward();
+      if (isClosed || session != _pourSession) return;
 
-    // Commit liquid transfer to bottle models
-    source.pourInto(target);
-    final sourceRevealed = source.checkAndRevealTop();
-    final targetRevealed = target.checkAndRevealTop();
-    if (sourceRevealed || targetRevealed) {
-      AudioService.to.playBottleTapSound();
-      HapticFeedbackHelper.mediumImpact();
+      // Commit liquid transfer to bottle models
+      source.pourInto(target);
+      final sourceRevealed = source.checkAndRevealTop();
+      final targetRevealed = target.checkAndRevealTop();
+      if (sourceRevealed || targetRevealed) {
+        AudioService.to.playBottleTapSound();
+        HapticFeedbackHelper.mediumImpact();
+      }
+
+      bottles.refresh();
+
+      // Record move in history
+      moveHistory.add(GameMove(
+        fromIndex: fromIdx,
+        toIndex: toIdx,
+        color: colorToPour,
+        amount: amountToPour,
+        sourceHiddenBefore: sourceHiddenBefore,
+        targetHiddenBefore: targetHiddenBefore,
+      ));
+      moveCount.value++;
+      completedMove = true;
+    } catch (_) {
+      // Ticker canceled / interrupted by level reload or screen exit
+    } finally {
+      if (!isClosed) {
+        _pourAnimationController.removeListener(animationListener);
+        if (session == _pourSession) {
+          isPouring.value = false;
+          selectedBottleIndex.value = null;
+          pouringSourceIndex.value = -1;
+          pouringTargetIndex.value = -1;
+          pouringAmount.value = 0;
+          pourTiltAngle.value = 0.0;
+          pourTiltOffset.value = Offset.zero;
+          streamProgress.value = 0.0;
+        }
+      }
     }
 
-    bottles.refresh();
-
-    // Record move in history
-    moveHistory.add(GameMove(
-      fromIndex: fromIdx,
-      toIndex: toIdx,
-      color: colorToPour,
-      amount: amountToPour,
-      sourceHiddenBefore: sourceHiddenBefore,
-      targetHiddenBefore: targetHiddenBefore,
-    ));
-    moveCount.value++;
-
-    // Reset pour visual state
-    isPouring.value = false;
-    selectedBottleIndex.value = null;
-    pouringSourceIndex.value = -1;
-    pouringTargetIndex.value = -1;
-    pouringAmount.value = 0;
-    pourTiltAngle.value = 0.0;
-    pourTiltOffset.value = Offset.zero;
-    streamProgress.value = 0.0;
-
-    // Check Victory or Defeat
-    _checkGameStateAfterMove();
+    if (completedMove && !isClosed && session == _pourSession) {
+      // Check Victory or Defeat
+      _checkGameStateAfterMove();
+    }
   }
 
   bool _calculateStreamCoordinates(int fromIdx, int toIdx) {
@@ -437,6 +475,13 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
 
     int actualCoinsEarned = 0;
 
+    int oldRank = 0;
+    int newRank = 0;
+    int oldStars = 0;
+    int newStars = 0;
+    List<LeaderboardUser>? oldBoard;
+    List<LeaderboardUser>? newBoard;
+
     if (isTutorial) {
       await StorageService.to.completeTutorial();
     } else {
@@ -457,41 +502,85 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         actualCoinsEarned = 0;
       }
 
+      final isSignedIn = (Get.isRegistered<FirebaseService>() &&
+              FirebaseService.to.isUserLoggedIn) ||
+          StorageService.to.userEmail.value.isNotEmpty;
+
+      oldStars = StorageService.to.totalStarsCollected;
+      if (isSignedIn) {
+        oldBoard = StorageService.to.getCachedLeaderboard(overrideUserStars: oldStars);
+        if (oldBoard.length > 1) {
+          oldRank = oldBoard.firstWhere((u) => u.isCurrentUser).rank;
+        }
+      }
+
       await StorageService.to.completeLevel(levelId.value, stars);
 
-      // Invalidate leaderboard cache so next time leaderboard opens it reflects updated stars
-      if (Get.isRegistered<FirebaseService>()) {
-        FirebaseService.to.invalidateLeaderboardCache();
+      newStars = StorageService.to.totalStarsCollected;
+      if (isSignedIn && newStars > oldStars && oldRank > 0) {
+        newBoard = StorageService.to.getCachedLeaderboard(overrideUserStars: newStars);
+        if (newBoard.length > 1) {
+          newRank = newBoard.firstWhere((u) => u.isCurrentUser).rank;
+          await StorageService.to.saveCachedLeaderboard(newBoard);
+          if (newRank < oldRank) {
+            await StorageService.to.setLastLeaderboardRank(newRank);
+          }
+        }
       }
     }
 
     // Show Interstitial ad if eligible (every AppConstants.interstitialLevelInterval levels)
     await Future.delayed(const Duration(milliseconds: 900));
+    if (isClosed) return;
 
-    AdsService.to.showInterstitialIfEligible(isTutorial: isTutorial, onComplete: () {
-      Get.dialog(
-        VictoryDialog(
-          levelId: levelId.value,
-          stars: stars,
-          baseCoins: actualCoinsEarned,
-          onNextLevel: () => nextLevel(),
-          onRestart: () => restartLevel(),
-          onHome: () => isTutorial ? Get.offAllNamed('/home') : Get.back(),
-          showNextLevel: !isTutorial,
-          showReplay: !isTutorial,
-          isTutorial: isTutorial,
-          showCoins: !isTutorial,
-          homeLabel: isTutorial ? 'Home' : 'Levels',
-          title: isTutorial ? 'WELL DONE!' : 'VICTORY!',
-          subtitle: isTutorial ? 'Tutorial Complete' : 'Level ${levelId.value} Cleared',
-        ),
-        barrierDismissible: false,
-      );
-    });
+    AdsService.to.showInterstitialIfEligible(
+      isTutorial: isTutorial,
+      onComplete: () async {
+        if (isClosed) return;
+        if (!isTutorial &&
+            oldBoard != null &&
+            newBoard != null &&
+            newRank > 0 &&
+            newRank < oldRank) {
+          await Get.dialog(
+            LeaderboardRankUpDialog(
+              oldBoard: oldBoard,
+              newBoard: newBoard,
+              oldRank: oldRank,
+              newRank: newRank,
+              oldStars: oldStars,
+              newStars: newStars,
+            ),
+            barrierDismissible: false,
+          );
+          if (isClosed) return;
+        }
+
+        Get.dialog(
+          VictoryDialog(
+            levelId: levelId.value,
+            stars: stars,
+            baseCoins: actualCoinsEarned,
+            onNextLevel: () => nextLevel(),
+            onRestart: () => restartLevel(),
+            onHome: () => isTutorial ? Get.offAllNamed('/home') : Get.back(),
+            showNextLevel: !isTutorial,
+            showReplay: !isTutorial,
+            isTutorial: isTutorial,
+            showCoins: !isTutorial,
+            homeLabel: isTutorial ? 'Home' : 'Levels',
+            title: isTutorial ? 'WELL DONE!' : 'VICTORY!',
+            subtitle: isTutorial ? 'Tutorial Complete' : 'Level ${levelId.value} Cleared',
+          ),
+          barrierDismissible: false,
+        );
+      },
+    );
   }
 
   void _handleDefeat() {
     Future.delayed(const Duration(milliseconds: 450), () {
+      if (isClosed) return;
       Get.dialog(
         DefeatDialog(
           onUndo: () => undoMove(),
@@ -570,7 +659,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   Future<void> addExtraEmptyBottleWithAd() async {
-    if (extraBottleDisabled) return;
+    if (isPouring.value || isGameWon.value || extraBottleDisabled) return;
 
     final hasInternet = await AdsService.to.checkInternetConnection();
     if (!hasInternet) {
@@ -604,6 +693,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void openPauseMenu() {
+    if (isPouring.value || isGameWon.value) return;
     AudioService.to.playButtonClick();
     Get.dialog(
       PauseDialog(

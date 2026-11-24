@@ -26,10 +26,13 @@ class SplashController extends GetxController {
       progress.value = i / 100.0;
     }
 
-    // Do not navigate until the Home background is ready to paint.
-    await homeAssets;
+    // Do not stall on Splash if image precaching fails or takes too long.
+    try {
+      await homeAssets.timeout(const Duration(seconds: 3));
+    } catch (_) {}
 
     await Future.delayed(const Duration(milliseconds: 250));
+    if (isClosed) return;
 
     // Check if app is opened for the first time (tutorial not yet completed)
     final isFirstTime = !StorageService.to.tutorialCompleted.value;

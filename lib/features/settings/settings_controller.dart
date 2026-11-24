@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/services/firebase_service.dart';
 import '../../core/services/storage_service.dart';
 
 class SettingsController extends GetxController {
@@ -140,6 +141,10 @@ class SettingsController extends GetxController {
                   Expanded(
                     child: GestureDetector(
                       onTap: () async {
+                        if (Get.isRegistered<FirebaseService>() &&
+                            FirebaseService.to.isUserLoggedIn) {
+                          await FirebaseService.to.signOut();
+                        }
                         await storage.resetAll();
                         Get.back();
                         Get.snackbar(
@@ -258,8 +263,8 @@ class SettingsController extends GetxController {
                   child: Text(
                     '${AppConstants.appName} is committed to protecting your privacy.\n\n'
                     '• Local Data: Game state, levels, coins, and settings are stored locally on your device.\n\n'
-                    '• Advertisements: Google Mobile Ads (AdMob) may collect anonymous device identifiers to serve non-personalized and personalized ads in accordance with Google\'s privacy policy.\n\n'
-                    '• Analytics: No sensitive personal data is collected or shared.\n\n'
+                    '• Google Sign-In & Cloud Backup: If you choose to sign in with Google, Firebase Authentication handles sign-in and Cloud Firestore stores your display name, profile photo URL, country flag, and game progress to enable cloud sync and the global leaderboard.\n\n'
+                    '• Advertisements: Google Mobile Ads (AdMob) may collect device identifiers and usage data to serve personalized or non-personalized ads in accordance with Google\'s privacy policy and your consent preferences.\n\n'
                     'For any questions or privacy concerns, please contact aruninnovationstudio@gmail.com',
                     style: TextStyle(
                       height: 1.5,

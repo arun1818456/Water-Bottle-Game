@@ -15,23 +15,26 @@ class InternetRequiredDialog extends StatelessWidget {
     required this.message,
   });
 
-  /// Helper to safely show the dialog from anywhere
+  static bool _isShowing = false;
+
+  /// Helper to safely show the dialog from anywhere without closing parent dialogs
   static Future<void> show({
     String title = 'Internet Required',
     required String message,
   }) async {
+    if (_isShowing) return;
     final context = Get.overlayContext ?? Get.context;
     if (context == null) return;
 
-    // Avoid stacking duplicate no-internet dialogs
-    if (Get.isDialogOpen ?? false) {
-      Get.back();
+    _isShowing = true;
+    try {
+      await Get.dialog(
+        InternetRequiredDialog(title: title, message: message),
+        barrierDismissible: true,
+      );
+    } finally {
+      _isShowing = false;
     }
-
-    await Get.dialog(
-      InternetRequiredDialog(title: title, message: message),
-      barrierDismissible: true,
-    );
   }
 
   @override

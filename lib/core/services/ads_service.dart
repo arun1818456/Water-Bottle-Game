@@ -16,7 +16,7 @@ class AdsService extends GetxService {
   static String get bannerAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if (kDebugMode) {
+      if (!kReleaseMode) {
         return 'ca-app-pub-3940256099942544/6300978111';
       }
       return 'ca-app-pub-4886824424959094/2276252420'; //original
@@ -28,7 +28,7 @@ class AdsService extends GetxService {
   static String get gameBannerAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if (kDebugMode) {
+      if (!kReleaseMode) {
         return 'ca-app-pub-3940256099942544/6300978111';
       }
       return 'ca-app-pub-4886824424959094/9522410959'; //original
@@ -39,7 +39,7 @@ class AdsService extends GetxService {
   static String get interstitialAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if (kDebugMode) {
+      if (!kReleaseMode) {
         return 'ca-app-pub-3940256099942544/1033173712';
       }
       return 'ca-app-pub-4886824424959094/7105907276'; //original
@@ -50,7 +50,7 @@ class AdsService extends GetxService {
   static String get rewardedAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      if (kDebugMode) {
+      if (!kReleaseMode) {
         return 'ca-app-pub-3940256099942544/5224354917';
       }
       return 'ca-app-pub-4886824424959094/8315047168'; //original
@@ -75,6 +75,8 @@ class AdsService extends GetxService {
 
   // --- State ---
   bool _isInitialized = false;
+  bool _consentChecked = false;
+  bool _canRequestAds = true;
 
   DateTime? _lastConnectivityCheck;
   bool _lastConnectivityResult = true;
@@ -143,19 +145,56 @@ class AdsService extends GetxService {
     return this;
   }
 
+  Future<void> _ensureConsent() async {
+    if (_consentChecked) return;
+    final completer = Completer<void>();
+    try {
+      final params = ConsentRequestParameters();
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        params,
+        () async {
+          _consentChecked = true;
+          try {
+            if (await ConsentInformation.instance.isConsentFormAvailable()) {
+              await ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+                if (formError != null) {
+                  debugPrint('AdsService: Consent form notice: ${formError.message}');
+                }
+              });
+            }
+            _canRequestAds = await ConsentInformation.instance.canRequestAds();
+          } catch (e) {
+            debugPrint('AdsService: Consent form exception: $e');
+          }
+          if (!completer.isCompleted) completer.complete();
+        },
+        (FormError error) {
+          debugPrint('AdsService: Consent info update skipped/failed: ${error.message}');
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+      await completer.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    } catch (e) {
+      debugPrint('AdsService: Consent check error: $e');
+    }
+  }
+
   Future<void> _initializeSdk() async {
     try {
       final RequestConfiguration requestConfiguration = RequestConfiguration(
         ageRestrictedTreatment: AgeRestrictedTreatment.unspecified,
-        maxAdContentRating: MaxAdContentRating.ma,
+        maxAdContentRating: MaxAdContentRating.pg,
       );
       await MobileAds.instance.updateRequestConfiguration(requestConfiguration);
+      await _ensureConsent();
       await MobileAds.instance.initialize();
       _isInitialized = true;
-      loadHomeBanner();
-      loadGameBanner();
-      _loadInterstitialAd();
-      _loadRewardedAd();
+      if (_canRequestAds) {
+        loadHomeBanner();
+        loadGameBanner();
+        _loadInterstitialAd();
+        _loadRewardedAd();
+      }
     } catch (e) {
       debugPrint('AdsService: Initialization failed: $e');
     }
@@ -172,12 +211,20 @@ class AdsService extends GetxService {
 
   void loadGameBanner() => _loadBanner(_gameBanner, gameBannerAdUnitId);
 
-  void _loadBanner(_BannerSlotState slot, String adUnitId) {
-    if (!_isInitialized || adUnitId.isEmpty) return;
+  void _loadBanner(_BannerSlotState slot, String adUnitId, {bool isRetry = false}) {
+    if (!_isInitialized || !_canRequestAds || adUnitId.isEmpty) return;
     if (slot.isLoading || (slot.isLoaded.value && slot.ad != null)) return;
-    // Respect backoff: views call this from build(), which must not trigger a request storm.
-    final next = slot.nextAttemptAt;
-    if (next != null && DateTime.now().isBefore(next)) return;
+    if (!isRetry) {
+      // Explicit screen open re-arms paused background retries, while still
+      // respecting active backoff cooldowns.
+      final next = slot.nextAttemptAt;
+      if (next != null && DateTime.now().isBefore(next)) return;
+      if (slot.retryAttempts > _maxAutoRetries) {
+        slot.retryAttempts = 0;
+      }
+    } else if (slot.retryAttempts > _maxAutoRetries) {
+      return;
+    }
 
     slot.isLoading = true;
     slot.ad?.dispose();
@@ -208,7 +255,7 @@ class AdsService extends GetxService {
           final delay = _retryDelay(slot.retryAttempts);
           slot.nextAttemptAt = DateTime.now().add(delay);
           if (slot.retryAttempts <= _maxAutoRetries) {
-            Future.delayed(delay, () => _loadBanner(slot, adUnitId));
+            Future.delayed(delay, () => _loadBanner(slot, adUnitId, isRetry: true));
           }
         },
       ),
@@ -226,7 +273,7 @@ class AdsService extends GetxService {
   // ---------------------------------------------------------------------------
 
   void _loadInterstitialAd() {
-    if (!_isInitialized || _isInterstitialLoading || interstitialAdUnitId.isEmpty) return;
+    if (!_isInitialized || !_canRequestAds || _isInterstitialLoading || interstitialAdUnitId.isEmpty) return;
     if (_interstitialAd != null) {
       if (!_isExpired(_interstitialLoadedAt)) return;
       debugPrint('AdsService: Cached interstitial expired, reloading.');
@@ -320,8 +367,8 @@ class AdsService extends GetxService {
     _interstitialAd = null; // prevent double presentation
     _isShowingFullScreenAd = true;
 
-    // Safety failsafe: if AdMob SDK fails to fire any dismissal or failure callback
-    // within 2 seconds of presentation, guarantee level completion progression.
+    // Safety failsafe: if AdMob SDK fails to present the ad within 2 seconds,
+    // guarantee level completion progression. Cancelled as soon as the ad appears.
     safetyTimer = Timer(const Duration(milliseconds: 2000), () {
       if (!done) {
         debugPrint('AdsService: Interstitial presentation timeout failsafe triggered.');
@@ -331,6 +378,9 @@ class AdsService extends GetxService {
     });
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        safetyTimer?.cancel();
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _onFullScreenAdClosed();
@@ -350,6 +400,7 @@ class AdsService extends GetxService {
       ad.show();
     } catch (e) {
       debugPrint('AdsService: Error presenting interstitial ad: $e');
+      ad.dispose();
       _isShowingFullScreenAd = false;
       finish();
     }
@@ -360,7 +411,7 @@ class AdsService extends GetxService {
   // ---------------------------------------------------------------------------
 
   void _loadRewardedAd() {
-    if (!_isInitialized || _isRewardedLoading || rewardedAdUnitId.isEmpty) return;
+    if (!_isInitialized || !_canRequestAds || _isRewardedLoading || rewardedAdUnitId.isEmpty) return;
     if (_rewardedAd != null) {
       if (!_isExpired(_rewardedLoadedAt)) return;
       debugPrint('AdsService: Cached rewarded ad expired, reloading.');
@@ -458,6 +509,14 @@ class AdsService extends GetxService {
       return;
     }
 
+    if (!_consentChecked) {
+      await _ensureConsent();
+    }
+    if (!_canRequestAds) {
+      fail();
+      return;
+    }
+
     void present() {
       if (finished) return;
       finished = true;
@@ -474,11 +533,11 @@ class AdsService extends GetxService {
     }
 
     debugPrint('AdsService: Rewarded ad not cached, fetching on demand...');
-    final closeLoader = _showAdLoader();
-
     late final Timer timeoutTimer;
+    late final VoidCallback closeLoader;
+
     void onLoadResult(bool loaded) {
-      if (finished) return; // timed out already; the ad stays cached for next tap
+      if (finished) return; // timed out or cancelled; the ad stays cached for next tap
       timeoutTimer.cancel();
       closeLoader();
       if (loaded && isRewardedAdReady) {
@@ -487,6 +546,15 @@ class AdsService extends GetxService {
         fail();
       }
     }
+
+    closeLoader = _showAdLoader(
+      onUserDismissed: () {
+        if (finished) return;
+        timeoutTimer.cancel();
+        _rewardedLoadWaiters.remove(onLoadResult);
+        fail(notify: false);
+      },
+    );
 
     timeoutTimer = Timer(_rewardedOnDemandTimeout, () {
       _rewardedLoadWaiters.remove(onLoadResult);
@@ -544,6 +612,7 @@ class AdsService extends GetxService {
       });
     } catch (e) {
       debugPrint('AdsService: Error showing rewarded ad: $e');
+      adToShow.dispose();
       _isShowingFullScreenAd = false;
       _showAdUnavailableMessage();
       onAdFailed?.call();
@@ -575,7 +644,7 @@ class AdsService extends GetxService {
   }
 
   /// Shows the loader and returns a function that closes exactly that dialog.
-  VoidCallback _showAdLoader() {
+  VoidCallback _showAdLoader({VoidCallback? onUserDismissed}) {
     final navigator = Get.key.currentState;
     final context = Get.overlayContext ?? Get.context;
     if (navigator == null || context == null) return () {};
@@ -589,9 +658,15 @@ class AdsService extends GetxService {
         child: _AdLoaderDialog(),
       ),
     );
+    var closed = false;
+    route.popped.then((_) {
+      if (!closed) {
+        closed = true;
+        onUserDismissed?.call();
+      }
+    });
     navigator.push(route);
 
-    var closed = false;
     return () {
       if (closed) return;
       closed = true;

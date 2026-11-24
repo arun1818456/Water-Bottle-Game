@@ -1,15 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:water_bottle_ais/core/constants/app_images.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/widgets/pressable_scale.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/utils/haptic_feedback_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../core/widgets/free_coins_dialog.dart';
 import '../../core/widgets/google_features_dialog.dart';
 import 'home_controller.dart';
-import 'widgets/interactive_water_drop.dart';
+import 'widgets/home_cartoon_widgets.dart';
 
 /// Main Menu Screen
 class HomeView extends StatefulWidget {
@@ -59,7 +60,13 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     final storage = controller.storage;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _showExitDialog();
+      },
+      child: Scaffold(
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
@@ -70,557 +77,309 @@ class _HomeViewState extends State<HomeView> {
         child: SafeArea(
           child: Column(
             children: [
-              // Top Bar: Coins & Streak
+              // Top Bar: Streak (left) & Coins (right)
               Padding(
-                padding: const EdgeInsets.only(left: 12, right: 12, top: 18, bottom: 6),
+                padding: const EdgeInsets.only(
+                  left: 10,
+                  right: 12,
+                  top: 10,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🔥 Daily Streak Badge (Tapping opens Daily Reward screen)
-                    GestureDetector(
-                      onTap: controller.onDailyRewardPressed,
-                      child: Obx(
-                        () {
-                          final isBroken = storage.isStreakBroken();
-                          final streak = storage.dailyStreak.value;
+                    // Daily Streak Badge
+                    Obx(
+                      () => CartoonStreakBadge(
+                        streak: storage.dailyStreak.value,
+                        isBroken: storage.isStreakBroken(),
+                        onTap: controller.onDailyRewardPressed,
+                      ),
+                    ),
 
-                          return Container(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: isBroken
-                                    ? [const Color(0xFF5A1212), const Color(0xFF380808)]
-                                    : [const Color(0xFF14529B), const Color(0xFF0B3B80)],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                              border: Border.all(
-                                color: isBroken
-                                    ? const Color(0xFFFF5252)
-                                    : const Color(0xFF20D9FF),
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(40),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (isBroken
-                                          ? const Color(0xFFFF5252)
-                                          : const Color(0xFF00CFFF))
-                                      .withValues(alpha: 0.25),
-                                  blurRadius: 10,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(width: 8),
-                                // Circle Badge
-                                Container(
-                                  width: 25,
-                                  height: 25,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isBroken
-                                        ? const Color(0xFF420A0A)
-                                        : const Color(0xFF082D69),
-                                    border: Border.all(
-                                      color: isBroken
-                                          ? const Color(0xFFFF5252)
-                                          : const Color(0xFF164F9C),
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: isBroken
-                                        ? const Text(
-                                            '😢',
-                                            style: TextStyle(fontSize: 13),
-                                          )
-                                        : const Icon(
-                                            Icons.local_fire_department_rounded,
-                                            color: Color(0xFFFF5722),
-                                            size: 15,
-                                          ),
-                                  ),
-                                ),
-
-                                const SizedBox(width: 8),
-
-                                Text(
-                                  isBroken ? 'Streak Lost 😢' : '$streak Day Streak',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: isBroken
-                                        ? const Color(0xFFFF8A8A)
-                                        : Colors.white,
-                                  ),
-                                ),
-
-                                const SizedBox(width: 8),
-
-                                // Right Arrow
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: isBroken
-                                      ? const Color(0xFFFF8A8A)
-                                      : const Color(0xFF38DFFF),
-                                  size: 20,
-                                ),
-                              ],
-                            ),
+                    // Coins Pill
+                    Obx(
+                      () => CartoonCoinsBadge(
+                        formattedCoins: storage.coins.value.formatCompact,
+                        onTap: () {
+                          AudioService.to.playButtonClick();
+                          Get.dialog(
+                            const FreeCoinsDialog(),
+                            barrierDismissible: true,
                           );
                         },
                       ),
                     ),
-
-                    // 🪙 Coins Counter (Tapping + or pill opens Free Coins Rewarded Ad dialog)
-                    GestureDetector(
-                      onTap: () {
-                        AudioService.to.playButtonClick();
-                        Get.dialog(
-                          const FreeCoinsDialog(),
-                          barrierDismissible: true,
-                        );
-                      },
-                      child: Obx(
-                        () => Container(
-                          padding: const EdgeInsets.only(
-                            left: 8,
-                            top: 6,
-                            bottom: 6,
-                            right: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF14529B), Color(0xFF0B3B80)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                            border: Border.all(
-                              color: const Color(0xFF20D9FF),
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(40),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFF00CFFF,
-                                ).withValues(alpha: 0.18),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Coin Icon
-                              Container(
-                                width: 25,
-                                height: 25,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: const Color(0xFFFFD700),
-                                  border: Border.all(
-                                    color: const Color(0xFFFFE66D),
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFFFFD700,
-                                      ).withValues(alpha: 0.35),
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.monetization_on_rounded,
-                                  color: Color(0xFFFFA000),
-                                  size: 20,
-                                ),
-                              ),
-
-                              const SizedBox(width: 10),
-
-                              Text(
-                                storage.coins.value.formatCompact,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-
-                              const SizedBox(width: 10),
-
-                              // Plus Button
-                              Container(
-                                width: 25,
-                                height: 25,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF2196F3),
-                                      Color(0xFF0752C7),
-                                    ],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
-                                  border: Border.all(
-                                    color: const Color(0xFF40DFFF),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.add_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
-              SizedBox(height: 5),
-              // Game Hero Branding
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child:
-                        Container(
-                              margin: EdgeInsets.all(5),
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    AppColors.primaryCyan,
-                                    AppColors.primaryBlue,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primaryCyan.withAlpha(120),
-                                    blurRadius: 36,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: const InteractiveWaterDrop(),
-                            )
-                            .animate(
-                              onPlay: Get.testMode
-                                  ? null
-                                  : (c) => c.repeat(reverse: true),
-                            )
-                            .moveY(
-                              begin: -6,
-                              end: 6,
-                              duration: 1800.ms,
-                              curve: Curves.easeInOut,
-                            ),
-                  ),
-                  Spacer(),
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: GestureDetector(
-                      onTap: controller.onLeaderboardPressed,
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12, top: 5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8E24AA), Color(0xFF4A148C)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(
-                            color: const Color(0xFFE040FB),
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xFFE040FB,
-                              ).withValues(alpha: 0.35),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.emoji_events_rounded,
-                              color: Color(0xFFFFD700),
-                              size: 16,
-                            ),
-                            SizedBox(width: 5),
-                            Text(
-                              'Leaderboard',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 2),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Color(0xFFE040FB),
-                              size: 16,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
 
-              const Spacer(flex: 6),
-
-              // Play Button
+              // Shifted Upper Leaderboard Pill
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 55),
-                child: PressableScale(
-                  onTap: controller.onPlayPressed,
-                  pressedScale: 0.95,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF18DDF5),
-                          Color(0xFF0795F5),
-                          Color(0xFF0875E8),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: BorderRadius.circular(35),
-                      border: Border.all(
-                        color: const Color(0xFF39E9FF),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(
-                            0xFF00CFFF,
-                          ).withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                        const BoxShadow(
-                          color: Color(0xFF064DA5),
-                          offset: Offset(0, 5),
-                          blurRadius: 0,
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.play_arrow_rounded,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'PLAY NOW',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
+                padding: const EdgeInsets.only(right: 14, top: 2),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: CartoonLeaderboardPill(
+                    onTap: controller.onLeaderboardPressed,
                   ),
                 ),
-              )
-                  .animate()
-                  .scale(duration: 400.ms, curve: Curves.easeOutBack)
-                  // Periodic light sweep to draw the eye to the main action
-                  .animate(onPlay: Get.testMode ? null : (c) => c.repeat())
-                  .shimmer(
-                    delay: 2600.ms,
-                    duration: 1300.ms,
-                    color: Colors.white.withValues(alpha: 0.35),
-                  ),
+              ),
 
-              const SizedBox(height: 15),
+              // Open middle canvas showcasing background_image2.png logo & bottles
+              const Spacer(),
+
+              // Main Play CTA Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 42),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 276),
+                  child: CartoonPlayNowButton(
+                    onTap: controller.onPlayPressed,
+                  )
+                      .animate(autoPlay: !Get.testMode)
+                      .scale(duration: 400.ms, curve: Curves.easeOutBack)
+                      .animate(
+                        autoPlay: !Get.testMode,
+                        onPlay: Get.testMode ? null : (c) => c.repeat(),
+                      )
+                      .shimmer(
+                        delay: 2600.ms,
+                        duration: 1300.ms,
+                        color: Colors.white.withValues(alpha: 0.35),
+                      ),
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
               Obx(
                 () => Text(
                   'Current Level ${storage.unlockedLevel.value}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    shadows: cartoonTextOutline(
+                      strokeColor: const Color(0xFF04265E),
+                      strokeWidth: 1.3,
+                      shadowOffsetY: 1.5,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
+
+              const SizedBox(height: 10),
 
               // Action Buttons Row: Levels, Shop, Daily, Settings
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildMenuCard(
-                      icon: Icons.grid_view_rounded,
-                      label: 'Levels',
-                      color: AppColors.primaryCyan,
-                      onTap: controller.onLevelSelectPressed,
+                    Expanded(
+                      child: CartoonMenuCard(
+                        label: 'Levels',
+                        iconType: CartoonMenuIconType.levels,
+                        onTap: controller.onLevelSelectPressed,
+                      ),
                     ),
-
-                    _buildMenuCard(
-                      icon: Icons.storefront_rounded,
-                      label: 'Shop',
-                      color: const Color(0xFFFFD700),
-                      onTap: controller.onShopPressed,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: CartoonMenuCard(
+                        label: 'Shop',
+                        iconType: CartoonMenuIconType.shop,
+                        onTap: controller.onShopPressed,
+                      ),
                     ),
-
-                    Obx(() {
-                      final claimable = storage.isDailyRewardClaimable();
-
-                      return _buildMenuCard(
-                        icon: Icons.card_giftcard_rounded,
-                        label: 'Daily',
-                        color: const Color(0xFFFF4081),
-                        hasBadge: claimable,
-                        onTap: controller.onDailyRewardPressed,
-                      );
-                    }),
-
-                    _buildMenuCard(
-                      icon: Icons.settings_rounded,
-                      label: 'Settings',
-                      color: AppColors.primaryPurple,
-                      onTap: controller.onSettingsPressed,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Obx(
+                        () => CartoonMenuCard(
+                          label: 'Daily',
+                          iconType: CartoonMenuIconType.daily,
+                          hasBadge: storage.isDailyRewardClaimable(),
+                          onTap: controller.onDailyRewardPressed,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: CartoonMenuCard(
+                        label: 'Settings',
+                        iconType: CartoonMenuIconType.settings,
+                        onTap: controller.onSettingsPressed,
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              const Spacer(flex: 1),
+              const SizedBox(height: 8),
 
-              // AdMob Banner at bottom of home screen (attached to absolute bottom)
+              // AdMob Banner at bottom of home screen
               controller.ads.getHomeBannerWidget(),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 
-  Widget _buildMenuCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-    bool hasBadge = false,
-  }) {
-    return PressableScale(
-      onTap: onTap,
-      pressedScale: 0.9,
-      child: SizedBox(
-        width: 76,
-        height: 92,
+  /// Show exit confirmation dialog on back press
+  Future<void> _showExitDialog() async {
+    AudioService.to.playButtonClick();
+    HapticFeedbackHelper.selectionClick();
+
+    final shouldExit = await Get.dialog<bool>(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
         child: Container(
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF1B5DA5), Color(0xFF0B3679)],
+              colors: [
+                Color(0xFF0E223D),
+                Color(0xFF071324),
+              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF28D9FF), width: 1.3),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.55),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF001C52).withValues(alpha: 0.35),
-                offset: const Offset(0, 4),
-                blurRadius: 0,
+                color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                blurRadius: 24,
+              ),
+              const BoxShadow(
+                color: Colors.black87,
+                blurRadius: 20,
+                offset: Offset(0, 10),
               ),
             ],
           ),
-          child: Stack(
-            alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFFF5252).withValues(alpha: 0.15),
+                  border: Border.all(
+                    color: const Color(0xFFFF5252),
+                    width: 1.8,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.exit_to_app_rounded,
+                  color: Color(0xFFFF8A8A),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Exit Game?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Are you sure you want to quit Water Sort Puzzle?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.78),
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF092E68),
-                      border: Border.all(
-                        color: color.withValues(alpha: 0.65),
-                        width: 1.2,
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        AudioService.to.playButtonClick();
+                        Get.back(result: false);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00E5FF), Color(0xFF0088FF)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Stay',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF001E3C),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    child: Icon(icon, color: color, size: 25),
                   ),
-
-                  const SizedBox(height: 6),
-
-                  SizedBox(
-                    width: 70,
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        AudioService.to.playButtonClick();
+                        Get.back(result: true);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF5252).withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFFF5252).withValues(alpha: 0.7),
+                          ),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Exit',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFFF8A8A),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-
-              if (hasBadge)
-                Positioned(
-                  top: 5,
-                  right: 5,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFF1744),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
             ],
           ),
-        ),
+        ).animate().scale(duration: 240.ms, curve: Curves.easeOutBack).fadeIn(duration: 180.ms),
       ),
+      barrierDismissible: true,
     );
+
+    if (shouldExit == true) {
+      exit(0);
+    }
   }
 }

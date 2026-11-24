@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
+import '../../features/leaderboard/leaderboard_controller.dart';
 
 /// StorageService manages persistent player data using SharedPreferences.
 /// Designed with a clean interface so Hive or an alternative storage engine
@@ -45,6 +46,8 @@ class StorageService extends GetxService {
   static const String _keyLastRank = 'asm_last_leaderboard_rank';
   static const String _keyNotificationIndex = 'asm_notification_message_idx';
   static const String _keyGooglePromoShown = 'asm_google_promo_shown';
+  static const String _keyLastSignedInUid = 'asm_last_signed_in_uid';
+  static const String _keyCachedLeaderboard = 'asm_cached_cloud_leaderboard';
 
   // Reactive Observables for Real-time UI updates
   final RxInt coins = 100.obs;
@@ -158,7 +161,7 @@ class StorageService extends GetxService {
   }
 
   Future<void> setUserCountryFlag(String flag) async {
-    if (flag.isEmpty) return;
+    if (flag.isEmpty || userCountryFlag.value == flag) return;
     userCountryFlag.value = flag;
     await _prefs.setString(_keyCountryFlag, flag);
     onDataChanged?.call();
@@ -210,27 +213,29 @@ class StorageService extends GetxService {
   }
 
   Future<void> setUserName(String newName) async {
-    if (newName.trim().isEmpty) return;
-    await _prefs.setString(_keyUserName, newName.trim());
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || _prefs.getString(_keyUserName) == trimmed) return;
+    await _prefs.setString(_keyUserName, trimmed);
     onDataChanged?.call();
   }
 
   Future<void> setUserPhotoUrl(String url) async {
+    if (userPhotoUrl.value == url) return;
     userPhotoUrl.value = url;
     await _prefs.setString(_keyUserPhotoUrl, url);
     onDataChanged?.call();
   }
 
   Future<void> setUserAvatar(String emoji) async {
+    if (userAvatarEmoji.value == emoji) return;
     userAvatarEmoji.value = emoji;
     await _prefs.setString(_keyUserAvatar, emoji);
-    onDataChanged?.call();
   }
 
   Future<void> setUserEmail(String email) async {
+    if (userEmail.value == email) return;
     userEmail.value = email;
     await _prefs.setString(_keyUserEmail, email);
-    onDataChanged?.call();
   }
 
   /// Backward compatible wrapper calling [mergeAndRestoreFromCloudMap]
@@ -268,16 +273,7 @@ class StorageService extends GetxService {
       }
     }
 
-    // 3. Completed Count
-    if (data.containsKey('completedCount') && data['completedCount'] is int) {
-      final cloudCount = data['completedCount'] as int;
-      if (isLocalFresh || cloudCount > completedCount.value) {
-        completedCount.value = cloudCount;
-        await _prefs.setInt(_keyCompletedCount, completedCount.value);
-      }
-    }
-
-    // 4. Tutorial Completed: if level > 1 or completedCount > 0, tutorial is completed!
+    // 3. Tutorial Completed: if level > 1 or completedCount > 0, tutorial is completed!
     if (unlockedLevel.value > 1 || completedCount.value > 0) {
       tutorialCompleted.value = true;
       await _prefs.setBool(_keyTutorialCompleted, true);
@@ -344,35 +340,28 @@ class StorageService extends GetxService {
       }
     }
 
-    // 10. Daily Streak
-    if (data.containsKey('dailyStreak') && data['dailyStreak'] is int) {
-      final cloudStreak = data['dailyStreak'] as int;
-      if (isLocalFresh || cloudStreak > dailyStreak.value) {
-        dailyStreak.value = cloudStreak;
-        await _prefs.setInt(_keyDailyStreak, dailyStreak.value);
-        if (data.containsKey('lastDailyClaimDate') && (data['lastDailyClaimDate'] as String).isNotEmpty) {
-          lastDailyClaimDate.value = data['lastDailyClaimDate'] as String;
-          await _prefs.setString(_keyDailyLastClaim, lastDailyClaimDate.value);
-        }
-      }
-    }
-
-    // 11. User Name & PhotoUrl
-    if (data.containsKey('userName') && (data['userName'] as String).isNotEmpty) {
+    // 10. User Name, PhotoUrl & CountryFlag (write directly without marking cloud dirty)
+    if (data.containsKey('userName') && data['userName'] is String && (data['userName'] as String).isNotEmpty) {
       final cloudName = data['userName'] as String;
       final currentName = getOrCreateUserName();
       if ((isLocalFresh || currentName.startsWith('Player_')) && !cloudName.startsWith('Player_')) {
         await _prefs.setString(_keyUserName, cloudName);
       }
     }
-    if (data.containsKey('photoUrl') && (data['photoUrl'] as String).isNotEmpty) {
-      await setUserPhotoUrl(data['photoUrl'] as String);
+    if (data.containsKey('photoUrl') && data['photoUrl'] is String && (data['photoUrl'] as String).isNotEmpty) {
+      final cloudPhoto = data['photoUrl'] as String;
+      if (userPhotoUrl.value != cloudPhoto) {
+        userPhotoUrl.value = cloudPhoto;
+        await _prefs.setString(_keyUserPhotoUrl, cloudPhoto);
+      }
     }
-    if (data.containsKey('countryFlag') && (data['countryFlag'] as String).isNotEmpty) {
-      await setUserCountryFlag(data['countryFlag'] as String);
+    if (data.containsKey('countryFlag') && data['countryFlag'] is String && (data['countryFlag'] as String).isNotEmpty) {
+      final cloudFlag = data['countryFlag'] as String;
+      if (userCountryFlag.value != cloudFlag) {
+        userCountryFlag.value = cloudFlag;
+        await _prefs.setString(_keyCountryFlag, cloudFlag);
+      }
     }
-
-    onDataChanged?.call();
   }
 
   int get totalStarsCollected {
@@ -573,7 +562,6 @@ class StorageService extends GetxService {
     lastDailyClaimDate.value = '';
     await _prefs.setInt(_keyDailyStreak, 0);
     await _prefs.setString(_keyDailyLastClaim, '');
-    onDataChanged?.call();
   }
 
   // --- Google Onboarding / Promo Dialog Flag ---
@@ -586,7 +574,164 @@ class StorageService extends GetxService {
     await _prefs.setBool(_keyGooglePromoShown, true);
   }
 
+  // --- Cached Real Firebase Leaderboard (Offline Support) ---
+
+  /// Persists real Firebase leaderboard players in SharedPreferences so rank
+  /// changes and offline leaderboard rendering work without hitting Firestore.
+  Future<void> saveCachedLeaderboard(List<LeaderboardUser> users) async {
+    if (users.isEmpty) return;
+    final serialized = users
+        .map((u) => {
+              'name': u.name,
+              'photoUrl': u.photoUrl,
+              'avatarEmoji': u.avatarEmoji,
+              'countryFlag': u.countryFlag,
+              'stars': u.stars,
+              'level': u.level,
+              'isCurrentUser': u.isCurrentUser,
+            })
+        .toList();
+    await _prefs.setString(_keyCachedLeaderboard, jsonEncode(serialized));
+  }
+
+  /// Builds a sorted leaderboard from the locally cached real Firebase users,
+  /// updating the current user's live star/level count.
+  /// Returns an empty list if no real Firebase leaderboard has been cached yet.
+  List<LeaderboardUser> getCachedLeaderboard({
+    int? overrideUserStars,
+    int? overrideUserLevel,
+  }) {
+    final raw = _prefs.getString(_keyCachedLeaderboard);
+    if (raw == null || raw.isEmpty) return [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List || decoded.isEmpty) return [];
+
+      final others = <LeaderboardUser>[];
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final isMe = item['isCurrentUser'] == true;
+        if (isMe) continue;
+        others.add(
+          LeaderboardUser(
+            rank: 0,
+            name: (item['name'] as String?) ?? 'Player',
+            photoUrl: (item['photoUrl'] as String?) ?? '',
+            avatarEmoji: (item['avatarEmoji'] as String?) ?? '🎮',
+            countryFlag: (item['countryFlag'] as String?) ?? '🌍',
+            stars: (item['stars'] as int?) ?? 0,
+            level: (item['level'] as int?) ?? 1,
+            isCurrentUser: false,
+          ),
+        );
+      }
+
+      if (others.isEmpty) return [];
+
+      final myStars = overrideUserStars ?? totalStarsCollected;
+      final myLevel = overrideUserLevel ?? unlockedLevel.value;
+      final myName = getOrCreateUserName();
+      final myPhoto = userPhotoUrl.value;
+      final myAvatar = getOrCreateUserAvatar();
+      final myFlag = getOrCreateCountryFlag();
+
+      final entries = <LeaderboardUser>[
+        ...others,
+        LeaderboardUser(
+          rank: 0,
+          name: '$myName (You)',
+          photoUrl: myPhoto,
+          avatarEmoji: myAvatar,
+          countryFlag: myFlag,
+          stars: myStars,
+          level: myLevel,
+          isCurrentUser: true,
+        ),
+      ];
+
+      entries.sort((a, b) {
+        final cmp = b.stars.compareTo(a.stars);
+        if (cmp != 0) return cmp;
+        // On exact tie, keep existing real user ahead so player must pass (> stars) to overtake
+        if (a.isCurrentUser != b.isCurrentUser) {
+          return a.isCurrentUser ? 1 : -1;
+        }
+        return a.name.compareTo(b.name);
+      });
+
+      for (var i = 0; i < entries.length; i++) {
+        final u = entries[i];
+        entries[i] = LeaderboardUser(
+          rank: i + 1,
+          name: u.name,
+          photoUrl: u.photoUrl,
+          avatarEmoji: u.avatarEmoji,
+          countryFlag: u.countryFlag,
+          stars: u.stars,
+          level: u.level,
+          isCurrentUser: u.isCurrentUser,
+        );
+      }
+
+      return entries;
+    } catch (_) {
+      return [];
+    }
+  }
+
   // --- Reset Progress ---
+
+  String getLastSignedInUid() {
+    return _prefs.getString(_keyLastSignedInUid) ?? '';
+  }
+
+  Future<void> setLastSignedInUid(String uid) async {
+    if (uid.isEmpty) {
+      await _prefs.remove(_keyLastSignedInUid);
+    } else {
+      await _prefs.setString(_keyLastSignedInUid, uid);
+    }
+  }
+
+  /// Clears account-specific progress when signing out or switching Google accounts,
+  /// while preserving local device settings (audio, vibration, tutorial, promo flag).
+  Future<void> resetGameProgressForSignOut() async {
+    await _prefs.remove(_keyCoins);
+    await _prefs.remove(_keyUnlockedLevel);
+    await _prefs.remove(_keyCurrentLevel);
+    await _prefs.remove(_keyLevelStars);
+    await _prefs.remove(_keyCompletedCount);
+    await _prefs.remove(_keyBottleSkins);
+    await _prefs.remove(_keyEquippedBottle);
+    await _prefs.remove(_keyBackgrounds);
+    await _prefs.remove(_keyEquippedBackground);
+    await _prefs.remove(_keyDailyLastClaim);
+    await _prefs.remove(_keyDailyStreak);
+    await _prefs.remove(_keyUserId);
+    await _prefs.remove(_keyUserName);
+    await _prefs.remove(_keyUserPhotoUrl);
+    await _prefs.remove(_keyUserAvatar);
+    await _prefs.remove(_keyUserEmail);
+    await _prefs.remove(_keyLastRank);
+    await _prefs.remove(_keyLastSignedInUid);
+    await _prefs.remove(_keyCachedLeaderboard);
+
+    coins.value = 100;
+    unlockedLevel.value = 1;
+    currentLevel.value = 1;
+    completedCount.value = 0;
+    levelStars.clear();
+    unlockedBottleSkins.assignAll(['glass']);
+    equippedBottleSkin.value = 'glass';
+    unlockedBackgrounds.assignAll(['ocean']);
+    equippedBackground.value = 'ocean';
+    dailyStreak.value = 0;
+    lastDailyClaimDate.value = '';
+    userEmail.value = '';
+    userPhotoUrl.value = '';
+    userAvatarEmoji.value = '🎮';
+  }
 
   Future<void> resetAll() async {
     await _prefs.clear();
@@ -605,7 +750,10 @@ class StorageService extends GetxService {
     vibrationEnabled.value = true;
     dailyStreak.value = 0;
     lastDailyClaimDate.value = '';
+    userEmail.value = '';
     userPhotoUrl.value = '';
+    userAvatarEmoji.value = '🎮';
+    userCountryFlag.value = detectDeviceCountryFlag();
   }
 }
 

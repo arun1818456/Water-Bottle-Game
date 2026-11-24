@@ -55,11 +55,27 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
 
   Future<void> _handleSignOut() async {
     AudioService.to.playButtonClick();
+    final confirmed = await Get.dialog<bool>(
+      const _SignOutConfirmDialog(),
+      barrierDismissible: true,
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
     await FirebaseService.to.signOut();
     if (Get.isRegistered<LeaderboardController>()) {
       Get.find<LeaderboardController>().refreshLeaderboard(invalidateCache: true);
     }
-    setState(() {});
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    Get.snackbar(
+      'Signed Out',
+      'Your progress is safely backed up in Google Cloud. Local progress on this device has been reset.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF0F172A).withValues(alpha: 0.95),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+    );
   }
 
   @override
@@ -653,6 +669,149 @@ class _ProfileAuthDialogState extends State<ProfileAuthDialog> {
       width: 1,
       height: 28,
       color: Colors.white.withValues(alpha: 0.12),
+    );
+  }
+}
+
+class _SignOutConfirmDialog extends StatelessWidget {
+  const _SignOutConfirmDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF15253F), Color(0xFF0A1424)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: const Color(0xFFFF5252).withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF5252).withValues(alpha: 0.22),
+              blurRadius: 22,
+            ),
+            const BoxShadow(
+              color: Colors.black87,
+              blurRadius: 20,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFF5252).withValues(alpha: 0.15),
+                border: Border.all(color: const Color(0xFFFF5252), width: 1.5),
+              ),
+              child: const Icon(
+                Icons.logout_rounded,
+                color: Color(0xFFFF8A8A),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Sign Out?',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Your levels, stars, and coins are safely backed up in your Google account.\n\nSigning out will reset local progress on this device until you sign back in.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.78),
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      AudioService.to.playButtonClick();
+                      Get.back(result: false);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      AudioService.to.playButtonClick();
+                      Get.back(result: true);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF5252), Color(0xFFD50000)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF5252).withValues(alpha: 0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Sign Out',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
