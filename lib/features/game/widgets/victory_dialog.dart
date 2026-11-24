@@ -7,6 +7,7 @@ import '../../../core/services/audio_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/number_formatter.dart';
+import '../../../core/widgets/internet_required_dialog.dart';
 
 /// Victory celebration popup modal
 class VictoryDialog extends StatefulWidget {
@@ -65,8 +66,17 @@ class _VictoryDialogState extends State<VictoryDialog> {
     }
   }
 
-  void _onDoubleCoinsPressed() {
+  Future<void> _onDoubleCoinsPressed() async {
     if (_doubleCoinsClaimed || _isProcessingAd || widget.baseCoins <= 0) return;
+
+    final hasInternet = await AdsService.to.checkInternetConnection();
+    if (!hasInternet) {
+      InternetRequiredDialog.show(
+        title: 'Internet Required',
+        message: 'An internet connection is required to watch the ad and double your coins (2x). Please connect to the internet and try again.',
+      );
+      return;
+    }
 
     setState(() {
       _isProcessingAd = true;
@@ -74,6 +84,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
     AudioService.to.playButtonClick();
 
     AdsService.to.showRewardedAd(
+      customOfflineMessage: 'An internet connection is required to watch the ad and double your coins (2x). Please connect to the internet and try again.',
       onUserEarnedReward: (reward) {
         if (!mounted) return;
         setState(() {

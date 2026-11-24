@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/ads_service.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/widgets/internet_required_dialog.dart';
 
 class DailyRewardController extends GetxController {
   final storage = StorageService.to;
@@ -135,12 +136,23 @@ class _DailyCelebrationDialogState extends State<_DailyCelebrationDialog> {
   bool _isDoubled = false;
   bool _isProcessingAd = false;
 
-  void _onDoublePressed() {
+  Future<void> _onDoublePressed() async {
     if (_isDoubled || _isProcessingAd) return;
+
+    final hasInternet = await AdsService.to.checkInternetConnection();
+    if (!hasInternet) {
+      InternetRequiredDialog.show(
+        title: 'Internet Required',
+        message: 'An internet connection is required to double your daily reward. Please connect to the internet and try again.',
+      );
+      return;
+    }
+
     setState(() => _isProcessingAd = true);
     AudioService.to.playButtonClick();
 
     AdsService.to.showRewardedAd(
+      customOfflineMessage: 'An internet connection is required to double your daily reward. Please connect to the internet and try again.',
       onUserEarnedReward: (reward) {
         if (!mounted) return;
         setState(() {

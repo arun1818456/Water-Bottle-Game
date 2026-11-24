@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../constants/app_constants.dart';
+import '../widgets/internet_required_dialog.dart';
 import 'storage_service.dart';
 
 /// Reusable Google Mobile Ads service managing Banners, Interstitials, and Rewarded ads.
@@ -70,10 +71,41 @@ class AdsService extends GetxService {
   static const Duration _minInterstitialGap = Duration(seconds: 30);
 
   /// How long the "Opening Sponsor Ad..." loader waits for an on-demand rewarded ad.
-  static const Duration _rewardedOnDemandTimeout = Duration(seconds: 8);
+  static const Duration _rewardedOnDemandTimeout = Duration(seconds: 4);
 
   // --- State ---
   bool _isInitialized = false;
+
+  DateTime? _lastConnectivityCheck;
+  bool _lastConnectivityResult = true;
+
+  /// Fast connectivity check with 1200ms timeout.
+  /// Results are cached for 3 seconds to avoid duplicate DNS lookups on rapid taps.
+  Future<bool> checkInternetConnection({bool force = false}) async {
+    if (kIsWeb) return true;
+    final now = DateTime.now();
+    if (!force &&
+        _lastConnectivityCheck != null &&
+        now.difference(_lastConnectivityCheck!) < const Duration(seconds: 3)) {
+      return _lastConnectivityResult;
+    }
+
+    try {
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(milliseconds: 1200));
+      _lastConnectivityResult =
+          result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      _lastConnectivityResult = false;
+    } on TimeoutException catch (_) {
+      _lastConnectivityResult = false;
+    } catch (_) {
+      _lastConnectivityResult = false;
+    }
+
+    _lastConnectivityCheck = DateTime.now();
+    return _lastConnectivityResult;
+  }
 
   final _BannerSlotState _homeBanner = _BannerSlotState('Home');
   final _BannerSlotState _gameBanner = _BannerSlotState('Game');
@@ -244,7 +276,7 @@ class AdsService extends GetxService {
 
   /// Shows an interstitial every [AppConstants.interstitialLevelInterval] completed levels.
   /// [onComplete] always runs exactly once (after the ad, or immediately if none is shown).
-  void showInterstitialIfEligible({VoidCallback? onComplete, bool isTutorial = false}) {
+  void showInterstitialIfEligible({VoidCallback? onComplete, bool isTutorial = false}) async {
     final completed = StorageService.to.completedCount.value;
     final lastClosed = _lastFullScreenAdClosedAt;
     final tooSoon = lastClosed != null &&
@@ -254,6 +286,13 @@ class AdsService extends GetxService {
         !tooSoon &&
         completed > 0 &&
         completed % AppConstants.interstitialLevelInterval == 0) {
+      // If internet is off or ad is not ready, skip ad immediately so next level comes instantly
+      final hasInternet = await checkInternetConnection();
+      if (!hasInternet || !isInterstitialAdReady) {
+        debugPrint('AdsService: Offline or interstitial not ready, continuing level progression directly.');
+        onComplete?.call();
+        return;
+      }
       showInterstitialAd(onDismissed: onComplete);
     } else {
       onComplete?.call();
@@ -262,9 +301,12 @@ class AdsService extends GetxService {
 
   void showInterstitialAd({VoidCallback? onDismissed}) {
     var done = false;
+    Timer? safetyTimer;
+
     void finish() {
       if (done) return;
       done = true;
+      safetyTimer?.cancel();
       onDismissed?.call();
     }
 
@@ -277,6 +319,16 @@ class AdsService extends GetxService {
     final ad = _interstitialAd!;
     _interstitialAd = null; // prevent double presentation
     _isShowingFullScreenAd = true;
+
+    // Safety failsafe: if AdMob SDK fails to fire any dismissal or failure callback
+    // within 2 seconds of presentation, guarantee level completion progression.
+    safetyTimer = Timer(const Duration(milliseconds: 2000), () {
+      if (!done) {
+        debugPrint('AdsService: Interstitial presentation timeout failsafe triggered.');
+        _isShowingFullScreenAd = false;
+        finish();
+      }
+    });
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
@@ -293,7 +345,14 @@ class AdsService extends GetxService {
         finish();
       },
     );
-    ad.show();
+
+    try {
+      ad.show();
+    } catch (e) {
+      debugPrint('AdsService: Error presenting interstitial ad: $e');
+      _isShowingFullScreenAd = false;
+      finish();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -367,7 +426,8 @@ class AdsService extends GetxService {
     required Function(RewardItem reward) onUserEarnedReward,
     VoidCallback? onAdClosed,
     VoidCallback? onAdFailed,
-  }) {
+    String? customOfflineMessage,
+  }) async {
     var finished = false;
     void fail({bool notify = true}) {
       if (finished) return;
@@ -378,6 +438,18 @@ class AdsService extends GetxService {
 
     if (_isShowingFullScreenAd) {
       fail(notify: false);
+      return;
+    }
+
+    // Instant offline check: Never show the blocking loader if offline
+    final hasInternet = await checkInternetConnection();
+    if (!hasInternet) {
+      fail(notify: false);
+      InternetRequiredDialog.show(
+        title: 'Internet Required',
+        message: customOfflineMessage ??
+            'An internet connection is required to watch the ad. Please connect to the internet and try again.',
+      );
       return;
     }
 
@@ -464,11 +536,18 @@ class AdsService extends GetxService {
       },
     );
 
-    adToShow.show(onUserEarnedReward: (adWithoutView, reward) {
-      if (rewarded) return; // guard against duplicate SDK callbacks
-      rewarded = true;
-      onUserEarnedReward(reward);
-    });
+    try {
+      adToShow.show(onUserEarnedReward: (adWithoutView, reward) {
+        if (rewarded) return; // guard against duplicate SDK callbacks
+        rewarded = true;
+        onUserEarnedReward(reward);
+      });
+    } catch (e) {
+      debugPrint('AdsService: Error showing rewarded ad: $e');
+      _isShowingFullScreenAd = false;
+      _showAdUnavailableMessage();
+      onAdFailed?.call();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -495,9 +574,7 @@ class AdsService extends GetxService {
     );
   }
 
-  /// Shows the blocking loader and returns a function that closes exactly that
-  /// dialog. (Get.back() is not used: in GetX 4 it closes an open snackbar instead
-  /// of the dialog, which left this non-dismissible loader stuck on screen.)
+  /// Shows the loader and returns a function that closes exactly that dialog.
   VoidCallback _showAdLoader() {
     final navigator = Get.key.currentState;
     final context = Get.overlayContext ?? Get.context;
@@ -505,9 +582,12 @@ class AdsService extends GetxService {
 
     final route = DialogRoute<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       barrierColor: Colors.black54,
-      builder: (_) => const PopScope(canPop: false, child: _AdLoaderDialog()),
+      builder: (_) => const PopScope(
+        canPop: true,
+        child: _AdLoaderDialog(),
+      ),
     );
     navigator.push(route);
 
@@ -515,7 +595,13 @@ class AdsService extends GetxService {
     return () {
       if (closed) return;
       closed = true;
-      if (route.isActive) navigator.removeRoute(route);
+      try {
+        if (route.isActive) {
+          navigator.removeRoute(route);
+        }
+      } catch (e) {
+        debugPrint('AdsService: Safe route removal notice: $e');
+      }
     };
   }
 
@@ -616,7 +702,7 @@ class _AdLoaderDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: const Color(0xFF0C2448).withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(20),
@@ -628,25 +714,41 @@ class _AdLoaderDialog extends StatelessWidget {
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 24,
-              height: 24,
+            const SizedBox(
+              width: 22,
+              height: 22,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00E5FF)),
               ),
             ),
-            SizedBox(width: 16),
-            Text(
+            const SizedBox(width: 14),
+            const Text(
               'Opening Sponsor Ad...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 decoration: TextDecoration.none,
+              ),
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () => Navigator.of(context).maybePop(),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
               ),
             ),
           ],

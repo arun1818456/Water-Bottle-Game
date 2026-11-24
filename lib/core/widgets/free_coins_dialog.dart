@@ -5,6 +5,7 @@ import '../services/ads_service.dart';
 import '../services/audio_service.dart';
 import '../services/storage_service.dart';
 import '../utils/number_formatter.dart';
+import 'internet_required_dialog.dart';
 
 /// Luxury Glassmorphic Dialog to earn free coins via Rewarded Video Ads
 class FreeCoinsDialog extends StatefulWidget {
@@ -31,8 +32,17 @@ class _FreeCoinsDialogState extends State<FreeCoinsDialog> {
     ads.preloadRewardedAd();
   }
 
-  void _watchRewardedAd() {
+  Future<void> _watchRewardedAd() async {
     if (_isWatchingAd) return;
+
+    final hasInternet = await ads.checkInternetConnection();
+    if (!hasInternet) {
+      InternetRequiredDialog.show(
+        title: 'Internet Required',
+        message: 'An internet connection is required to earn free coins. Please connect to the internet and try again.',
+      );
+      return;
+    }
 
     AudioService.to.playButtonClick();
 
@@ -42,6 +52,7 @@ class _FreeCoinsDialogState extends State<FreeCoinsDialog> {
     });
 
     ads.showRewardedAd(
+      customOfflineMessage: 'An internet connection is required to earn free coins. Please connect to the internet and try again.',
       onUserEarnedReward: (reward) async {
         if (!mounted) return;
         final amount = rewardCoinsAmount;

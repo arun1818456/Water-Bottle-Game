@@ -7,6 +7,7 @@ import '../../../core/services/ads_service.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/haptic_feedback_helper.dart';
+import '../../../core/widgets/internet_required_dialog.dart';
 import '../logic/level_manager.dart';
 import '../logic/procedural_level_generator.dart';
 import '../logic/water_sort_solver.dart';
@@ -519,7 +520,7 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     hintTargetIndex.value = null;
   }
 
-  void requestHint() {
+  Future<void> requestHint() async {
     if (isPouring.value || isGameWon.value) return;
 
     if (hintUsedCount.value < AppConstants.freeHintsPerLevel) {
@@ -527,8 +528,18 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
       _provideHint();
     } else {
       // Ad required
+      final hasInternet = await AdsService.to.checkInternetConnection();
+      if (!hasInternet) {
+        InternetRequiredDialog.show(
+          title: 'Internet Required',
+          message: 'An internet connection is required to watch the ad and get a hint. Please connect to the internet and try again.',
+        );
+        return;
+      }
+
       AudioService.to.playButtonClick();
       AdsService.to.showRewardedAd(
+        customOfflineMessage: 'An internet connection is required to watch the ad and get a hint. Please connect to the internet and try again.',
         onUserEarnedReward: (reward) {
           _provideHint();
         },
@@ -558,10 +569,20 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
     }
   }
 
-  void addExtraEmptyBottleWithAd() {
+  Future<void> addExtraEmptyBottleWithAd() async {
     if (extraBottleDisabled) return;
 
+    final hasInternet = await AdsService.to.checkInternetConnection();
+    if (!hasInternet) {
+      InternetRequiredDialog.show(
+        title: 'Internet Required',
+        message: 'An internet connection is required to watch the ad and add an extra bottle. Please connect to the internet and try again.',
+      );
+      return;
+    }
+
     AdsService.to.showRewardedAd(
+      customOfflineMessage: 'An internet connection is required to watch the ad and add an extra bottle. Please connect to the internet and try again.',
       onUserEarnedReward: (reward) {
         addExtraEmptyBottle();
       },
