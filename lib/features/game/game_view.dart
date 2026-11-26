@@ -751,6 +751,15 @@ class _GameViewState extends State<GameView> {
 
     final globalPos = renderBox.localToGlobal(Offset.zero);
     final localPos = stackBox.globalToLocal(globalPos);
+    final localRight = stackBox.globalToLocal(
+      renderBox.localToGlobal(Offset(renderBox.size.width, 0)),
+    );
+    final fittedScale = renderBox.size.width > 0
+        ? (localRight.dx - localPos.dx).abs() / renderBox.size.width
+        : 1.0;
+    final adjustedTiltOffset = fittedScale > 0
+        ? controller.pourTiltOffset.value / fittedScale
+        : controller.pourTiltOffset.value;
 
     final bottle = controller.bottles[fromIdx];
     final drainAmount = controller.streamProgress.value * controller.pouringAmount.value;
@@ -761,16 +770,20 @@ class _GameViewState extends State<GameView> {
       width: renderBox.size.width,
       height: renderBox.size.height,
       child: IgnorePointer(
-        child: BottleWidget(
-          bottle: bottle,
-          index: fromIdx,
-          isSelected: false,
-          skinType: skinType,
-          tiltAngle: controller.pourTiltAngle.value,
-          tiltOffset: controller.pourTiltOffset.value,
-          drainAmount: drainAmount,
-          isColorblindMode: controller.isColorblindMode.value,
-          onTap: () {},
+        child: Transform.scale(
+          scale: fittedScale,
+          alignment: Alignment.topLeft,
+          child: BottleWidget(
+            bottle: bottle,
+            index: fromIdx,
+            isSelected: false,
+            skinType: skinType,
+            tiltAngle: controller.pourTiltAngle.value,
+            tiltOffset: adjustedTiltOffset,
+            drainAmount: drainAmount,
+            isColorblindMode: controller.isColorblindMode.value,
+            onTap: () {},
+          ),
         ),
       ),
     );

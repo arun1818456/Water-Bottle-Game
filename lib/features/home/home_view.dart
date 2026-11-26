@@ -1,6 +1,6 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:water_bottle_ais/core/constants/app_images.dart';
@@ -379,7 +379,9 @@ class _HomeViewState extends State<HomeView> {
     );
 
     if (shouldExit == true) {
-      exit(0);
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        await SystemNavigator.pop();
+      }
     }
   }
 }

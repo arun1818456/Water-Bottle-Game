@@ -20,11 +20,13 @@ class DefeatDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Container(
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -203,27 +205,33 @@ class DefeatDialog extends StatelessWidget {
                           ]
                         : null,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.add_circle_outline_rounded,
-                        color: Color(0xFF002233),
-                        size: 22,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.add_circle_outline_rounded,
+                            color: Color(0xFF002233),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            extraBottleDisabled
+                                ? 'ADD EXTRA BOTTLE (LIMIT REACHED)'
+                                : 'ADD EXTRA BOTTLE (AD)',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF002233),
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        extraBottleDisabled
-                            ? 'ADD EXTRA BOTTLE (LIMIT REACHED)'
-                            : 'ADD EXTRA BOTTLE (AD)',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF002233),
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -255,25 +263,31 @@ class DefeatDialog extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.undo_rounded,
-                      color: Color(0xFFE040FB),
-                      size: 20,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.undo_rounded,
+                          color: Color(0xFFE040FB),
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'UNDO LAST MOVE',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 8),
-                    Text(
-                      'UNDO LAST MOVE',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -304,31 +318,38 @@ class DefeatDialog extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.refresh_rounded,
-                      color: Color(0xFFFFB300),
-                      size: 20,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.refresh_rounded,
+                          color: Color(0xFFFFB300),
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'RESTART LEVEL',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 8),
-                    Text(
-                      'RESTART LEVEL',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
       ),
-    ).animate().scale(duration: 280.ms, curve: Curves.easeOutBack).fadeIn(duration: 220.ms);
+    ).animate().scale(duration: 280.ms, curve: Curves.easeOutBack).fadeIn(duration: 220.ms),
+    );
   }
 }

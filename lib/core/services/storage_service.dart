@@ -212,18 +212,22 @@ class StorageService extends GetxService {
     return emoji;
   }
 
-  Future<void> setUserName(String newName) async {
+  Future<void> setUserName(String newName, {bool notifyCloud = true}) async {
     final trimmed = newName.trim();
     if (trimmed.isEmpty || _prefs.getString(_keyUserName) == trimmed) return;
     await _prefs.setString(_keyUserName, trimmed);
-    onDataChanged?.call();
+    if (notifyCloud) {
+      onDataChanged?.call();
+    }
   }
 
-  Future<void> setUserPhotoUrl(String url) async {
+  Future<void> setUserPhotoUrl(String url, {bool notifyCloud = true}) async {
     if (userPhotoUrl.value == url) return;
     userPhotoUrl.value = url;
     await _prefs.setString(_keyUserPhotoUrl, url);
-    onDataChanged?.call();
+    if (notifyCloud) {
+      onDataChanged?.call();
+    }
   }
 
   Future<void> setUserAvatar(String emoji) async {

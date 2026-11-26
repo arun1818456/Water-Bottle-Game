@@ -84,7 +84,9 @@ class LeaderboardController extends GetxController {
     userLevel.value = storage.unlockedLevel.value;
 
     final firebaseService = Get.isRegistered<FirebaseService>() ? FirebaseService.to : null;
-    final loggedIn = (firebaseService?.isUserLoggedIn ?? false) || storage.userEmail.value.isNotEmpty;
+    final loggedIn = (firebaseService != null && firebaseService.isInitialized)
+        ? firebaseService.isUserLoggedIn
+        : storage.userEmail.value.isNotEmpty;
     isUserLoggedIn.value = loggedIn;
 
     // Guest users must sign in with Google (no dummy/static leaderboard data)

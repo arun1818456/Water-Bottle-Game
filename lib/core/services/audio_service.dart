@@ -17,8 +17,8 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   AudioPlayer? _winPlayer;
 
   bool _isAppInForeground = true;
+  bool _reminderScheduledForBackground = false;
   Worker? _musicSettingWorker;
-  AppLifecycleListener? _lifecycleListener;
   Timer? _recoveryTimer;
 
   Future<AudioService> init() async {
@@ -73,16 +73,7 @@ class AudioService extends GetxService with WidgetsBindingObserver {
         }
       });
 
-      // AppLifecycleListener provides immediate lifecycle callbacks
-      _lifecycleListener = AppLifecycleListener(
-        onPause: pauseAllAudio,
-        onInactive: pauseAllAudio,
-        onHide: pauseAllAudio,
-        onDetach: pauseAllAudio,
-        onResume: resumeBackgroundMusic,
-      );
-
-      // Also listen via WidgetsBindingObserver for maximum device compatibility
+      // Listen via WidgetsBindingObserver for consistent single-path lifecycle handling
       WidgetsBinding.instance.addObserver(this);
 
       // Listen to changes in storage settings
@@ -183,17 +174,22 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        _reminderScheduledForBackground = false;
         resumeBackgroundMusic();
         if (Get.isRegistered<NotificationService>()) {
           NotificationService.to.cancelReminder();
         }
         break;
       case AppLifecycleState.inactive:
+        pauseAllAudio();
+        break;
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         pauseAllAudio();
-        if (Get.isRegistered<NotificationService>()) {
+        if (!_reminderScheduledForBackground &&
+            Get.isRegistered<NotificationService>()) {
+          _reminderScheduledForBackground = true;
           NotificationService.to.schedule13HourReminder();
         }
         break;
@@ -249,7 +245,6 @@ class AudioService extends GetxService with WidgetsBindingObserver {
   @override
   void onClose() {
     _recoveryTimer?.cancel();
-    _lifecycleListener?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _musicSettingWorker?.dispose();
     _musicPlayer?.dispose();

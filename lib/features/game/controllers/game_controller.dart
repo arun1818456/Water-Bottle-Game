@@ -387,9 +387,12 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         if (stackBox != null && fromBox != null && toBox != null) {
           final fromPos = stackBox.globalToLocal(fromBox.localToGlobal(Offset.zero));
           final toPos = stackBox.globalToLocal(toBox.localToGlobal(Offset.zero));
-          final bottleWidth = toBox.size.width;
+          final toTopRight = stackBox.globalToLocal(
+            toBox.localToGlobal(Offset(toBox.size.width, 0)),
+          );
+          final bottleWidth = (toTopRight.dx - toPos.dx).abs();
           // Geometry constants below are in the bottle's 58x150 design space;
-          // scale them to the bottle's on-screen size so the pour lines up.
+          // scale them to the bottle's actual on-screen size (including FittedBox) so the pour lines up.
           final s = bottleWidth / BottleWidget.designWidth;
 
           // Determine if target bottle is physically to the left of source bottle on screen
@@ -502,9 +505,12 @@ class GameController extends GetxController with GetTickerProviderStateMixin {
         actualCoinsEarned = 0;
       }
 
-      final isSignedIn = (Get.isRegistered<FirebaseService>() &&
-              FirebaseService.to.isUserLoggedIn) ||
-          StorageService.to.userEmail.value.isNotEmpty;
+      final firebaseService =
+          Get.isRegistered<FirebaseService>() ? FirebaseService.to : null;
+      final isSignedIn =
+          (firebaseService != null && firebaseService.isInitialized)
+              ? firebaseService.isUserLoggedIn
+              : StorageService.to.userEmail.value.isNotEmpty;
 
       oldStars = StorageService.to.totalStarsCollected;
       if (isSignedIn) {

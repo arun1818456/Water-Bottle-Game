@@ -76,7 +76,8 @@ class AdsService extends GetxService {
   // --- State ---
   bool _isInitialized = false;
   bool _consentChecked = false;
-  bool _canRequestAds = true;
+  bool _canRequestAds = false;
+  Future<void>? _inFlightConsent;
 
   DateTime? _lastConnectivityCheck;
   bool _lastConnectivityResult = true;
@@ -145,51 +146,83 @@ class AdsService extends GetxService {
     return this;
   }
 
-  Future<void> _ensureConsent() async {
-    if (_consentChecked) return;
-    final completer = Completer<void>();
-    try {
-      final params = ConsentRequestParameters();
-      ConsentInformation.instance.requestConsentInfoUpdate(
-        params,
-        () async {
-          _consentChecked = true;
-          try {
-            if (await ConsentInformation.instance.isConsentFormAvailable()) {
-              await ConsentForm.loadAndShowConsentFormIfRequired((formError) {
-                if (formError != null) {
-                  debugPrint('AdsService: Consent form notice: ${formError.message}');
-                }
-              });
+  Future<void> _ensureConsent() {
+    if (_consentChecked) return Future.value();
+    if (_inFlightConsent != null) return _inFlightConsent!;
+
+    _inFlightConsent = () async {
+      final completer = Completer<void>();
+      try {
+        final params = ConsentRequestParameters();
+        ConsentInformation.instance.requestConsentInfoUpdate(
+          params,
+          () async {
+            _consentChecked = true;
+            try {
+              if (await ConsentInformation.instance.isConsentFormAvailable()) {
+                await ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+                  if (formError != null) {
+                    debugPrint('AdsService: Consent form notice: ${formError.message}');
+                  }
+                });
+              }
+              _canRequestAds = await ConsentInformation.instance.canRequestAds();
+            } catch (e) {
+              debugPrint('AdsService: Consent form exception: $e');
+              try {
+                _canRequestAds = await ConsentInformation.instance.canRequestAds();
+              } catch (_) {
+                _canRequestAds = false;
+              }
             }
-            _canRequestAds = await ConsentInformation.instance.canRequestAds();
-          } catch (e) {
-            debugPrint('AdsService: Consent form exception: $e');
-          }
-          if (!completer.isCompleted) completer.complete();
-        },
-        (FormError error) {
-          debugPrint('AdsService: Consent info update skipped/failed: ${error.message}');
-          if (!completer.isCompleted) completer.complete();
-        },
-      );
-      await completer.future.timeout(const Duration(seconds: 5), onTimeout: () {});
-    } catch (e) {
-      debugPrint('AdsService: Consent check error: $e');
-    }
+            if (!completer.isCompleted) completer.complete();
+          },
+          (FormError error) async {
+            debugPrint('AdsService: Consent info update skipped/failed: ${error.message}');
+            try {
+              _canRequestAds = await ConsentInformation.instance.canRequestAds();
+            } catch (_) {
+              _canRequestAds = false;
+            }
+            if (!completer.isCompleted) completer.complete();
+          },
+        );
+        await completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () async {
+            try {
+              _canRequestAds = await ConsentInformation.instance.canRequestAds();
+            } catch (_) {
+              _canRequestAds = false;
+            }
+          },
+        );
+      } catch (e) {
+        debugPrint('AdsService: Consent check error: $e');
+        _canRequestAds = false;
+      } finally {
+        _inFlightConsent = null;
+      }
+    }();
+    return _inFlightConsent!;
+  }
+
+  Future<void> _ensureMobileAdsInitialized() async {
+    if (_isInitialized) return;
+    final RequestConfiguration requestConfiguration = RequestConfiguration(
+      ageRestrictedTreatment: AgeRestrictedTreatment.unspecified,
+      maxAdContentRating: MaxAdContentRating.pg,
+    );
+    await MobileAds.instance.updateRequestConfiguration(requestConfiguration);
+    await MobileAds.instance.initialize();
+    _isInitialized = true;
   }
 
   Future<void> _initializeSdk() async {
     try {
-      final RequestConfiguration requestConfiguration = RequestConfiguration(
-        ageRestrictedTreatment: AgeRestrictedTreatment.unspecified,
-        maxAdContentRating: MaxAdContentRating.pg,
-      );
-      await MobileAds.instance.updateRequestConfiguration(requestConfiguration);
       await _ensureConsent();
-      await MobileAds.instance.initialize();
-      _isInitialized = true;
       if (_canRequestAds) {
+        await _ensureMobileAdsInitialized();
         loadHomeBanner();
         loadGameBanner();
         _loadInterstitialAd();
@@ -504,7 +537,7 @@ class AdsService extends GetxService {
       return;
     }
 
-    if (!_isInitialized || rewardedAdUnitId.isEmpty) {
+    if (rewardedAdUnitId.isEmpty) {
       fail();
       return;
     }
@@ -515,6 +548,18 @@ class AdsService extends GetxService {
     if (!_canRequestAds) {
       fail();
       return;
+    }
+
+    if (!_isInitialized) {
+      try {
+        await _ensureMobileAdsInitialized();
+        loadHomeBanner();
+        loadGameBanner();
+        _loadInterstitialAd();
+      } catch (_) {
+        fail();
+        return;
+      }
     }
 
     void present() {

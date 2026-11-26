@@ -28,7 +28,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
   FirebaseAuth? get auth => _auth;
   User? get currentUser => _auth?.currentUser;
-  bool get isUserLoggedIn => _auth?.currentUser != null || (Get.isRegistered<StorageService>() && StorageService.to.userEmail.value.isNotEmpty);
+  bool get isUserLoggedIn => _auth?.currentUser != null;
 
   // Throttling & Zero-Cost Sync Tracking
   bool _isCloudDirty = false;
@@ -70,13 +70,23 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
             await StorageService.to.setUserEmail(user.email!);
           }
           if (user.displayName != null && user.displayName!.isNotEmpty) {
-            await StorageService.to.setUserName(user.displayName!);
+            await StorageService.to.setUserName(user.displayName!, notifyCloud: false);
           }
           if (user.photoURL != null && user.photoURL!.isNotEmpty) {
-            await StorageService.to.setUserPhotoUrl(user.photoURL!);
+            await StorageService.to.setUserPhotoUrl(user.photoURL!, notifyCloud: false);
           }
           // Fetch and restore cloud data (deduplicated against concurrent calls)
           await restoreCloudData();
+        } else {
+          if (!_isSigningIn &&
+              (StorageService.to.userEmail.value.isNotEmpty ||
+                  StorageService.to.getLastSignedInUid().isNotEmpty)) {
+            await StorageService.to.resetGameProgressForSignOut();
+          }
+          _restoredUidInSession = null;
+          _isCloudDirty = false;
+          _lastSyncTime = null;
+          invalidateLeaderboardCache();
         }
       });
 
@@ -138,12 +148,13 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
         if (doc.exists && doc.data() != null) {
           await StorageService.to.mergeAndRestoreFromCloudMap(doc.data()!);
+          _restoredUidInSession = userId;
           debugPrint('FirebaseService: Cloud progress restored on launch for $userId.');
         } else {
           // Initial cloud profile if doc doesn't exist yet
+          _restoredUidInSession = userId;
           await syncUserData(force: true);
         }
-        _restoredUidInSession = userId;
         if (StorageService.to.getCachedLeaderboard().isEmpty) {
           unawaited(fetchLeaderboard(limit: 50));
         }
@@ -168,9 +179,30 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
       return;
     }
 
+    final userId = currentUser?.uid;
+    if (userId == null) return;
+
     // Skip if nothing changed and not forced
     if (!force && !_isCloudDirty) {
       return;
+    }
+
+    // Ensure cloud data has been fetched and merged for this session before writing,
+    // so an offline launch cannot overwrite existing cloud progress with fresh local state.
+    if (_restoredUidInSession != userId) {
+      if (_inFlightRestore == null) {
+        await restoreCloudData();
+      } else {
+        await _inFlightRestore;
+      }
+      if (_restoredUidInSession != userId) {
+        debugPrint('FirebaseService: Cloud restore not yet completed for $userId; skipping write to avoid overwrite.');
+        return;
+      }
+      // If restoreCloudData created a brand-new profile, it already synced and cleared _isCloudDirty.
+      if (!_isCloudDirty) {
+        return;
+      }
     }
 
     // Throttling: prevent rapid repeated writes within 3 minutes unless forced
@@ -182,7 +214,6 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
 
     try {
       final storage = StorageService.to;
-      final userId = currentUser?.uid ?? storage.getOrCreateUserId();
       final userName = storage.getOrCreateUserName();
       final userPhoto = storage.userPhotoUrl.value;
       final totalStars = storage.totalStarsCollected;
@@ -203,7 +234,7 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      await _db!.collection('users').doc(userId).set(data);
+      await _db!.collection('users').doc(userId).set(data, SetOptions(merge: true));
       _isCloudDirty = false;
       _lastSyncTime = now;
       debugPrint('FirebaseService: Cloud progress saved successfully for $userId.');
@@ -257,8 +288,8 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         final photoUrl = user.photoURL ?? '';
 
         await StorageService.to.setUserEmail(email);
-        await StorageService.to.setUserName(displayName);
-        await StorageService.to.setUserPhotoUrl(photoUrl);
+        await StorageService.to.setUserName(displayName, notifyCloud: false);
+        await StorageService.to.setUserPhotoUrl(photoUrl, notifyCloud: false);
 
         // Check if user already has cloud progress in Firestore
         final userDocRef = _db!.collection('users').doc(userId);
@@ -267,11 +298,13 @@ class FirebaseService extends GetxService with WidgetsBindingObserver {
         if (docSnapshot.exists && docSnapshot.data() != null) {
           // EXISTING USER: Restore and merge without data loss
           await StorageService.to.mergeAndRestoreFromCloudMap(docSnapshot.data()!);
+          _restoredUidInSession = userId;
           // Write merged state back so Cloud has full updated profile
           await syncUserData(force: true);
           debugPrint('FirebaseService: Cloud data merged and restored for $userId.');
         } else {
           // NEW USER: Initial cloud profile created with current local progress
+          _restoredUidInSession = userId;
           await syncUserData(force: true);
           debugPrint('FirebaseService: New cloud profile created for $userId.');
         }

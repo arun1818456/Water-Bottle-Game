@@ -4,7 +4,7 @@ class AppConstants {
 
   // App Metadata
   static const String appName = 'AIS Water Bottle';
-  static const String appVersion = '1.6.0';
+  static const String appVersion = '1.7.0';
 
   // Game Rules
   static const int maxBottleCapacity = 4;

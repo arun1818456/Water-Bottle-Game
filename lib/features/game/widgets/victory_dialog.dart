@@ -127,10 +127,12 @@ class _VictoryDialogState extends State<VictoryDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Container(
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
         decoration: BoxDecoration(
           color: AppColors.backgroundMid.withAlpha(245),
@@ -351,6 +353,7 @@ class _VictoryDialogState extends State<VictoryDialog> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
